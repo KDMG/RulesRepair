@@ -16,7 +16,7 @@ from repair.run_perturbation_repair import (
     NON_FEATURE_COLUMNS, SKLEARN_GROW_FUNC_MIN_SAMPLES_LEAF,
     encode, predict, f1_macro, acc_score, count_nodes, count_new_nodes, load_xy,
     build_cart_baseline, build_chefboost_baseline, extend_columns_for_regrow,
-    build_j48_pair_baseline, build_reptree_baseline, build_ctree_baseline,
+    build_j48_pair_baseline, build_reptree_baseline,
 )
 from mutations.mutation_sampling import (
     generate_mutants, print_mutation_summary,
@@ -55,9 +55,6 @@ RESULTS_COLUMNS = [
     "f1_reptree_adapt", "f1_reptree_test", "acc_reptree_adapt", "acc_reptree_test",
     "reptree_total_nodes", "reptree_pct_to_reaudit", "pct_reaudit_reptree",
     "sim_old_reptree", "sim_old_reptree_labeled", "sim_old_reptree_jaccard", "reptree_train_time_sec",
-    "f1_ctree_adapt", "f1_ctree_test", "acc_ctree_adapt", "acc_ctree_test",
-    "ctree_total_nodes", "ctree_pct_to_reaudit", "pct_reaudit_ctree",
-    "sim_old_ctree", "sim_old_ctree_labeled", "sim_old_ctree_jaccard", "ctree_train_time_sec",
 ]
 
 
@@ -71,7 +68,7 @@ def _fit_or_load_baseline_trees(df_adapt_raw, df_test_raw, max_depth, rs_true_ol
         finally:
             sys.setrecursionlimit(old_limit)
         print(f"Baseline-tree cache hit at {cache_path}, reusing CART/CART-entropy/C4.5/"
-              f"J48(bounded+unbounded)/REPTree/CTree fits instead of refitting (identical "
+              f"J48(bounded+unbounded)/REPTree fits instead of refitting (identical "
               f"across every --seed for this dp).", flush=True)
         return payload
 
@@ -112,13 +109,6 @@ def _fit_or_load_baseline_trees(df_adapt_raw, df_test_raw, max_depth, rs_true_ol
     ) = build_reptree_baseline(df_adapt_raw, df_test_raw, max_depth, rs_true_old)
     reptree_train_time_sec = time.perf_counter() - reptree_start
 
-    ctree_start = time.perf_counter()
-    (
-        ctree_tree, f1_ctree_adapt, f1_ctree_test, acc_ctree_adapt, acc_ctree_test, ctree_total_nodes,
-        _unused_sim_ct, _unused_sim_ct_labeled, _unused_sim_ct_jaccard, _unused_pct_reaudit_ct,
-    ) = build_ctree_baseline(df_adapt_raw, df_test_raw, max_depth, rs_true_old)
-    ctree_train_time_sec = time.perf_counter() - ctree_start
-
     payload = {
         "cart_tree": cart_tree, "f1_cart_adapt": f1_cart_adapt, "f1_cart_test": f1_cart_test,
         "acc_cart_adapt": acc_cart_adapt, "acc_cart_test": acc_cart_test, "cart_total_nodes": cart_total_nodes,
@@ -139,9 +129,6 @@ def _fit_or_load_baseline_trees(df_adapt_raw, df_test_raw, max_depth, rs_true_ol
         "reptree_tree": reptree_tree, "f1_reptree_adapt": f1_reptree_adapt, "f1_reptree_test": f1_reptree_test,
         "acc_reptree_adapt": acc_reptree_adapt, "acc_reptree_test": acc_reptree_test,
         "reptree_total_nodes": reptree_total_nodes, "reptree_train_time_sec": reptree_train_time_sec,
-        "ctree_tree": ctree_tree, "f1_ctree_adapt": f1_ctree_adapt, "f1_ctree_test": f1_ctree_test,
-        "acc_ctree_adapt": acc_ctree_adapt, "acc_ctree_test": acc_ctree_test, "ctree_total_nodes": ctree_total_nodes,
-        "ctree_train_time_sec": ctree_train_time_sec,
     }
 
     if cache_path is not None:
@@ -156,7 +143,7 @@ def _fit_or_load_baseline_trees(df_adapt_raw, df_test_raw, max_depth, rs_true_ol
             sys.setrecursionlimit(old_limit)
         tmp_path.replace(cache_path)
         print(f"Baseline-tree cache miss, fit CART/CART-entropy/C4.5/J48(bounded+unbounded)/"
-              f"REPTree/CTree fresh and saved to {cache_path} for reuse by later --seed runs "
+              f"REPTree fresh and saved to {cache_path} for reuse by later --seed runs "
               f"of this same dp.", flush=True)
 
     return payload
@@ -262,13 +249,6 @@ def run_mutated_repair(
         _bt["acc_reptree_test"], _bt["reptree_total_nodes"], _bt["reptree_train_time_sec"],
     )
     rs_reptree = tuple_tree_conversion(reptree_tree) if reptree_tree is not None else None
-
-    (ctree_tree, f1_ctree_adapt, f1_ctree_test, acc_ctree_adapt, acc_ctree_test,
-     ctree_total_nodes, ctree_train_time_sec) = (
-        _bt["ctree_tree"], _bt["f1_ctree_adapt"], _bt["f1_ctree_test"], _bt["acc_ctree_adapt"],
-        _bt["acc_ctree_test"], _bt["ctree_total_nodes"], _bt["ctree_train_time_sec"],
-    )
-    rs_ctree = tuple_tree_conversion(ctree_tree) if ctree_tree is not None else None
 
     X_train_full, y_train_full = load_xy(df_data, cat_cols, columns)
     classes = sorted(set(y_adapt) | set(y_test))
@@ -410,14 +390,6 @@ def run_mutated_repair(
                 mark_reaudit_nodes(mutant_tree, reptree_tree)
                 _, _, pct_reaudit_reptree = reaudit_summary(reptree_tree)
 
-            sim_old_ctree = rule_set_similarity(rs_mutant, rs_ctree) if rs_ctree is not None else None
-            sim_old_ctree_labeled = rule_set_similarity_labeled(rs_mutant, rs_ctree) if rs_ctree is not None else None
-            sim_old_ctree_jaccard = jaccard_rule_set_similarity(rs_mutant, rs_ctree) if rs_ctree is not None else None
-            pct_reaudit_ctree = None
-            if ctree_tree is not None:
-                mark_reaudit_nodes(mutant_tree, ctree_tree)
-                _, _, pct_reaudit_ctree = reaudit_summary(ctree_tree)
-
             kr_cache = {}
 
             path_list = path_lists_by_trial[trial_idx - 1]
@@ -544,17 +516,6 @@ def run_mutated_repair(
                             "sim_old_reptree_labeled": round(sim_old_reptree_labeled, 4) if sim_old_reptree_labeled is not None else None,
                             "sim_old_reptree_jaccard": round(sim_old_reptree_jaccard, 4) if sim_old_reptree_jaccard is not None else None,
                             "reptree_train_time_sec": round(reptree_train_time_sec, 6),
-                            "f1_ctree_adapt": f1_ctree_adapt,
-                            "f1_ctree_test": f1_ctree_test,
-                            "acc_ctree_adapt": acc_ctree_adapt,
-                            "acc_ctree_test": acc_ctree_test,
-                            "ctree_total_nodes": ctree_total_nodes,
-                            "ctree_pct_to_reaudit": 100.0 if ctree_tree is not None else None,
-                            "pct_reaudit_ctree": pct_reaudit_ctree,
-                            "sim_old_ctree": round(sim_old_ctree, 4) if sim_old_ctree is not None else None,
-                            "sim_old_ctree_labeled": round(sim_old_ctree_labeled, 4) if sim_old_ctree_labeled is not None else None,
-                            "sim_old_ctree_jaccard": round(sim_old_ctree_jaccard, 4) if sim_old_ctree_jaccard is not None else None,
-                            "ctree_train_time_sec": round(ctree_train_time_sec, 6),
                         }
                         if fixed:
                             row["fixed_leaf_id"] = leaf_id
@@ -664,7 +625,7 @@ def main():
     parser.add_argument(
         "--baseline-tree-cache-dir", default=None,
         help="2026 addition: directory to cache the once-per-dp CART/CART-entropy/C4.5/"
-             "J48(bounded+unbounded)/REPTree/CTree fits in (one <dp>.pkl per decision point). "
+             "J48(bounded+unbounded)/REPTree fits in (one <dp>.pkl per decision point). "
              "These fits depend only on --data-csv/--split-seed, never on --seed -- when "
              "sweeping many --seed values for the SAME dp (run_repair_all_seeds.py), pass the "
              "SAME cache dir to every seed so only the first seed actually fits them and every "

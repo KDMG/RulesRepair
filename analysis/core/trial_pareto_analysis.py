@@ -20,8 +20,6 @@ OTHER_BASELINE_VALUE_COLS = [
     "acc_j48_unbounded_test",
     "f1_reptree_test", "reptree_total_nodes", "pct_reaudit_reptree", "sim_old_reptree",
     "sim_old_reptree_labeled", "sim_old_reptree_jaccard", "acc_reptree_test",
-    "f1_ctree_test", "ctree_total_nodes", "pct_reaudit_ctree", "sim_old_ctree",
-    "sim_old_ctree_labeled", "sim_old_ctree_jaccard", "acc_ctree_test",
 ]
 
 DEFAULT_VALUE_COLS = [

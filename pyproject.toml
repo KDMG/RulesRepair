@@ -45,18 +45,6 @@ chefboost = "^0.0.19"
 # not something poetry/pip can install for you.
 python-weka-wrapper3 = "^0.3.3"
 
-# CTree retraining baseline (2026, user's explicit request -- see
-# mining/ctree_baseline.py's module docstring, INCLUDING its ENVIRONMENT
-# CAVEAT: this path was written against partykit's documented API but
-# could not be execution-tested in the sandbox this was developed in, no
-# R available there -- verify against a real R + partykit install before
-# trusting T_CTree numbers). rpy2 itself installs via pip, but only
-# successfully IF R is already installed and on PATH (it links against
-# libR at import time) -- install R first (e.g. `apt install r-base`),
-# then from R: `install.packages("partykit")`, THEN `pip install rpy2` /
-# `poetry install`. Neither R nor the partykit CRAN package is something
-# poetry/pip can install for you.
-rpy2 = "^3.5"
 surround = "^0.1.2"
 
 # Process mining: mining the normative Petri net + log/PN alignment to

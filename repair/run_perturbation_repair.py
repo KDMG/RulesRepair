@@ -15,7 +15,6 @@ from chefboost.commons import functions as chef_functions
 
 from mining.cart_training import build_tree, encode_records
 from mining.weka_baselines import build_j48_trees, build_reptree_tree
-from mining.ctree_baseline import build_ctree_tree
 from keep_remine_prune import keep_remine_prune_alg
 from keep_remine_prune.tree_ruleset_conversion import tuple_tree_conversion
 from keep_remine_prune.similar_tree import rule_set_similarity, rule_set_similarity_labeled, jaccard_rule_set_similarity
@@ -189,10 +188,6 @@ def build_j48_baseline(df_adapt_raw, df_test_raw, max_depth, rs_old, old_tree=No
 
 def build_reptree_baseline(df_adapt_raw, df_test_raw, max_depth, rs_old, old_tree=None):
     return build_binary_baseline(build_reptree_tree, "REPTree", df_adapt_raw, df_test_raw, max_depth, rs_old, old_tree)
-
-
-def build_ctree_baseline(df_adapt_raw, df_test_raw, max_depth, rs_old, old_tree=None):
-    return build_binary_baseline(build_ctree_tree, "CTree", df_adapt_raw, df_test_raw, max_depth, rs_old, old_tree)
 
 
 CHEFBOOST_RULES_FILE = "outputs/rules/rules.py"
@@ -372,13 +367,6 @@ def run_repair(
         ) = build_reptree_baseline(df_adapt_raw, df_test_raw, max_depth, rs_old, old_tree=old_tree)
         reptree_train_time_sec = time.perf_counter() - reptree_start
 
-        ctree_start = time.perf_counter()
-        (
-            ctree_tree, f1_ctree_adapt, f1_ctree_test, acc_ctree_adapt, acc_ctree_test, ctree_total_nodes,
-            sim_old_ctree, sim_old_ctree_labeled, sim_old_ctree_jaccard, pct_reaudit_ctree,
-        ) = build_ctree_baseline(df_adapt_raw, df_test_raw, max_depth, rs_old, old_tree=old_tree)
-        ctree_train_time_sec = time.perf_counter() - ctree_start
-
         kr_cache = {}
 
         for leaf_id, forced_ids in path_list:
@@ -504,17 +492,6 @@ def run_repair(
                         "sim_old_reptree_labeled": round(sim_old_reptree_labeled, 4) if sim_old_reptree_labeled is not None else None,
                         "sim_old_reptree_jaccard": round(sim_old_reptree_jaccard, 4) if sim_old_reptree_jaccard is not None else None,
                         "reptree_train_time_sec": round(reptree_train_time_sec, 6),
-                        "f1_ctree_adapt": f1_ctree_adapt,
-                        "f1_ctree_test": f1_ctree_test,
-                        "acc_ctree_adapt": acc_ctree_adapt,
-                        "acc_ctree_test": acc_ctree_test,
-                        "ctree_total_nodes": ctree_total_nodes,
-                        "ctree_pct_to_reaudit": 100.0 if ctree_tree is not None else None,
-                        "pct_reaudit_ctree": pct_reaudit_ctree,
-                        "sim_old_ctree": round(sim_old_ctree, 4) if sim_old_ctree is not None else None,
-                        "sim_old_ctree_labeled": round(sim_old_ctree_labeled, 4) if sim_old_ctree_labeled is not None else None,
-                        "sim_old_ctree_jaccard": round(sim_old_ctree_jaccard, 4) if sim_old_ctree_jaccard is not None else None,
-                        "ctree_train_time_sec": round(ctree_train_time_sec, 6),
                     }
                     if fixed:
                         row["fixed_leaf_id"] = leaf_id
