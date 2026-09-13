@@ -1,0 +1,90 @@
+<metadata>
+   <doi>doi:10.4121/uuid:76c46b83-c930-4798-a1c9-4be94dfeb741</doi>
+   <name>Hospital Billing - Event Log.xes.gz</name>
+   <description>The 'Hospital Billing' event log was obtained from the financial modules of the ERP system of a regional hospital. The event log contains events that are related to the billing of medical services that have been provided by the hospital. Each trace of the event log records the activities executed to bill a package of medical services that were bundled together. The event log does not contain information about the actual medical services provided by the hospital.  The 100,000 traces in the event log are a random sample of process instances that were recorded over three years. Several attributes such as the 'state' of the process, the 'caseType', the underlying 'diagnosis' etc. are included in the event log. Events and attribute values have been anonymized. The time stamps of events have been randomized for this purpose, but the time between events within a trace has not been altered.  More information about the event log can be found in the related publications.</description>
+   <language>Englisch</language>
+   <log_type>Real-life</log_type>
+   <process_type>Implicitly structured</process_type>
+   <creation>
+   <insitute>Eindhoven University of Technology</insitute>
+   <person>F. Mannhardt</person>
+   <place>Eindhoven</place>
+   <time>Mon Jul 31 00:00:00 CEST 2017</time>
+   </creation>
+   <source>
+   <insitute>Eindhoven University of Technology, Department of Mathematics and Computer Science</insitute>
+   <institute_type>Hospital</institute_type>
+   <program>ERP System</program>
+   </source>
+   <rights type="Public">
+   </rights>
+   <number_of_traces>100000</number_of_traces>
+   <number_of_events>451359</number_of_events>
+   <events_per_trace>4.514</events_per_trace>
+   <min_events_per_trace>1</min_events_per_trace>
+   <max_events_per_trace>217</max_events_per_trace>
+   <global_attributes>
+      <trace_level>
+         <attribute key="concept:name" default="DEFAULT"/>
+      </trace_level>
+      <event_level>
+         <attribute key="concept:name" default="DEFAULT"/>
+         <attribute key="lifecycle:transition" default="DEFAULT"/>
+         <attribute key="time:timestamp" default="1970-01-01T01:00:00+01:00"/>
+      </event_level>
+   </global_attributes>
+   <meta_extensions>
+      <MetaData_Concept prefix="meta_concept" uri="http://www.xes-standard.org/meta_concept.xesext">
+         <different_names_average>4.303</different_names_average>
+         <different_names_max>12</different_names_max>
+         <different_names_min>1</different_names_min>
+         <different_names_standard_deviation>2.165</different_names_standard_deviation>
+         <different_names_total>18</different_names_total>
+         <named_events_average>4.514</named_events_average>
+         <named_events_max>217</named_events_max>
+         <named_events_min>1</named_events_min>
+         <named_events_standard_deviation>2.782</named_events_standard_deviation>
+         <named_events_total>451359</named_events_total>
+      </MetaData_Concept>
+      <MetaData_General prefix="meta_general" uri="http://www.xes-standard.org/meta_general.xesext">
+         <classifiers>1</classifiers>
+         <events_average>4.514</events_average>
+         <events_max>217</events_max>
+         <events_min>1</events_min>
+         <events_standard_deviation>2.782</events_standard_deviation>
+         <events_total>451359</events_total>
+         <traces_total>100000</traces_total>
+      </MetaData_General>
+      <MetaData_LifeCycle prefix="meta_life" uri="http://www.xes-standard.org/meta_life.xesext">
+         <different_transitions_average>1.0</different_transitions_average>
+         <different_transitions_max>1</different_transitions_max>
+         <different_transitions_min>1</different_transitions_min>
+         <different_transitions_standard_deviation>0.0</different_transitions_standard_deviation>
+         <different_transitions_total>1</different_transitions_total>
+         <transition_events_average>4.514</transition_events_average>
+         <transition_events_max>217</transition_events_max>
+         <transition_events_min>1</transition_events_min>
+         <transition_events_standard_deviation>2.782</transition_events_standard_deviation>
+         <transition_events_total>451359</transition_events_total>
+      </MetaData_LifeCycle>
+      <MetaData_Time prefix="meta_time" uri="http://www.xes-standard.org/meta_time.xesext">
+         <duration_average>1.1004136257E7</duration_average>
+         <duration_max>8.9460392E7</duration_max>
+         <duration_min>0.0</duration_min>
+         <duration_standard_deviation>1.1307906308E7</duration_standard_deviation>
+         <duration_total>1.100413625651E12</duration_total>
+         <log_duration>9.7800338E7</log_duration>
+         <log_end_time>2016-01-19T08:58:56+01:00</log_end_time>
+         <log_start_time>2012-12-13T10:13:18+01:00</log_start_time>
+      </MetaData_Time>
+   </meta_extensions>
+   <extensions>
+      <Concept prefix="concept" uri="http://www.xes-standard.org/concept.xesext">
+         <name>Hospital Billing - Event Log</name>
+      </Concept>
+      <Lifecycle prefix="lifecycle" uri="http://www.xes-standard.org/lifecycle.xesext">
+      </Lifecycle>
+      <Time prefix="time" uri="http://www.xes-standard.org/time.xesext">
+      </Time>
+   </extensions>
+</metadata>
