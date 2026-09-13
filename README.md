@@ -12,7 +12,7 @@ To run our application you need to have installed:
 
 * [Graphviz](https://graphviz.org/download/), required by the `graphviz` Python package to render trees
 
-* (optional, only for the Weka J48/REPTree baselines) a **JVM**, OpenJDK 8 or later
+* (optional, only for the Weka C4.5/REPTree baselines) a JVM, OpenJDK 8 or later
 
 ## Reproduce results
 
