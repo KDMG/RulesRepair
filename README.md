@@ -25,8 +25,6 @@ poetry install
 poetry run python run_pipeline.py --dataset sepsis
 ```
 
-The [`datasets`](https://github.com/KDMG/RulesRepair/tree/main/datasets) folder contains the raw event logs; `run_pipeline.py --dataset <name>` runs mining, decision-point extraction, and repair end to end for one of them. Known dataset names: `sepsis`, `production`, `hospital_billing`, `road_traffic`, `prepaid_travel_costs`, `international_declarations`.
-
 ## Contact
 
 For any information, please contact:
