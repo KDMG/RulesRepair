@@ -1,6 +1,6 @@
 # RulesRepair
 
-Repairing decision rules in data-aware process models with Keep-Regrow.
+Repairing Decision Rules in Data-Aware Process Models 
 
 ## Requirements
 
