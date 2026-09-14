@@ -13,8 +13,8 @@ from keep_remine_prune.similar_tree import rule_set_similarity, rule_set_similar
 from keep_remine_prune.reaudit import mark_reaudit_nodes, reaudit_summary
 from repair.run_perturbation_experiment import split_adapt_test
 from repair.run_perturbation_repair import (
-    NON_FEATURE_COLUMNS, SKLEARN_GROW_FUNC_MIN_SAMPLES_LEAF,
-    encode, predict, f1_macro, acc_score, count_nodes, count_new_nodes, load_xy,
+    SKLEARN_GROW_FUNC_MIN_SAMPLES_LEAF,
+    predict, f1_macro, acc_score, count_nodes, count_new_nodes, load_xy,
     build_cart_baseline, build_chefboost_baseline, extend_columns_for_regrow,
     build_j48_pair_baseline, build_reptree_baseline,
 )
@@ -152,7 +152,7 @@ def _fit_or_load_baseline_trees(df_adapt_raw, df_test_raw, max_depth, rs_true_ol
 def run_mutated_repair(
     normative_model_path, dp, data_csv, target, adapt_fraction, split_method, split_seed,
     out_dir, operator_names=None,
-    w_simps=(5.0,), w_simis=(1.0,), max_depth=4, dpi=300,
+    w_simps=(5.0,), w_simis=(1.0,), max_depth=4,
     p=DEFAULT_P, degradation_threshold=DEFAULT_DEGRADATION_THRESHOLD, seed=0,
     n_thresholds=10, max_regrow_attempts=DEFAULT_MAX_REGROW_ATTEMPTS,
     regrow_max_depth=DEFAULT_REGROW_MAX_DEPTH, regrow_split_prob=DEFAULT_REGROW_SPLIT_PROB,
@@ -567,7 +567,7 @@ def run_mutated_repair(
     else:
         print(f"Scenario 3: Pareto analysis (per trial + aggregated by config) -> {out_dir / 'analysis'}", flush=True)
         analysis_dir = run_trial_pareto_analysis(
-            csv_path=out_csv, out_dir=out_dir / "analysis", dpi=dpi,
+            csv_path=out_csv, out_dir=out_dir / "analysis",
         )
 
     return manifest_path, out_csv, trees_pkl, analysis_dir
@@ -592,7 +592,6 @@ def main():
     parser.add_argument("--w-simps", default="0.0,0.001,0.005,0.01,0.02,0.05,0.1,0.2,0.3,0.5,0.75,1.0,1.5,2.0,3.0,5.0", help="Comma-separated list of w_simp values to sweep. Normalized scale (complexity term divided by nodes_max=2**(max_depth+1)-1). Extra resolution below 0.02 since some hospital_billing dps collapse to a trivial 1-node tree already at the first coarser nonzero value.")
     parser.add_argument("--w-simis", default="0.0,0.001,0.005,0.01,0.02,0.05,0.1,0.2,0.3,0.5,0.75,1.0,1.5", help="Comma-separated list of w_simi values to sweep. Normalized scale (audit term divided by nodes_max). Narrower top end than --w-simps: w_simi saturates by ~0.5-1 in every decision point checked.")
     parser.add_argument("--max-depth", type=int, default=4)
-    parser.add_argument("--dpi", type=int, default=300, help="DPI for the Pareto analysis plots (see trial_pareto_analysis.py, run automatically after the repair grid).")
     parser.add_argument("--p", type=float, default=DEFAULT_P, help="Fraction of compatible nodes to target per operator, ceil-rounded ('at least p%%'), default 0.2.")
     parser.add_argument("--degradation-threshold", type=float, default=DEFAULT_DEGRADATION_THRESHOLD, help="Minimum plain-accuracy drop (vs the TRUE unmutated T_old, on the test split) required to accept a mutation, default 0.2.")
     parser.add_argument("--seed", type=int, default=0, help="Single global seed for all mutation sampling/randomization (node visit order, label/threshold/feature choices, regrow subtrees) -- for full reproducibility.")
@@ -642,7 +641,7 @@ def main():
         normative_model_path=args.normative_model, dp=args.dp, data_csv=args.data_csv,
         target=args.target, adapt_fraction=args.adapt_fraction, split_method=args.split_method,
         split_seed=args.split_seed, out_dir=args.out_dir, operator_names=operator_names,
-        w_simps=w_simps, w_simis=w_simis, max_depth=args.max_depth, dpi=args.dpi,
+        w_simps=w_simps, w_simis=w_simis, max_depth=args.max_depth,
         p=args.p, degradation_threshold=args.degradation_threshold, seed=args.seed,
         n_thresholds=args.n_thresholds, max_regrow_attempts=args.max_regrow_attempts,
         regrow_max_depth=args.regrow_max_depth, regrow_split_prob=args.regrow_split_prob,

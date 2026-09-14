@@ -43,7 +43,6 @@ def run_baseline_repair(
     normative_model="normative_model.pkl", target="branch",
     adapt_fraction=0.7, split_method="case_chronological", split_seed=0, max_depth=4,
     w_simps=(0.0, 5.0), w_simis=(0.0, 1.0),
-    dpi=300,
     save_pareto_trees=False,
     fixed=False,
 ):
@@ -77,7 +76,7 @@ def run_baseline_repair(
 
     print(f"Baseline: Pareto analysis (per trial + aggregated by config) -> {baseline_dir / 'analysis'}")
     analysis_dir = run_trial_pareto_analysis(
-        csv_path=results_csv, out_dir=baseline_dir / "analysis", dpi=dpi,
+        csv_path=results_csv, out_dir=baseline_dir / "analysis",
     )
 
     outputs = {
@@ -139,7 +138,6 @@ def main():
     parser.add_argument("--w-simps", default="0.0,0.001,0.005,0.01,0.02,0.05,0.1,0.2,0.3,0.5,0.75,1.0,1.5,2.0,3.0,5.0", help="Comma-separated w_simp grid, applied to every trial. Normalized scale (complexity term / nodes_max).")
     parser.add_argument("--w-simis", default="0.0,0.001,0.005,0.01,0.02,0.05,0.1,0.2,0.3,0.5,0.75,1.0,1.5", help="Comma-separated w_simi grid, applied to every trial. Normalized scale (audit term / nodes_max).")
 
-    parser.add_argument("--dpi", type=int, default=300)
     parser.add_argument(
         "--save-pareto-trees", action=argparse.BooleanOptionalAction, default=False,
         help="Regenerate and pickle the actual repaired tree object for every PER-TRIAL "
@@ -163,7 +161,6 @@ def main():
         adapt_fraction=args.adapt_fraction, split_method=args.split_method, split_seed=args.split_seed,
         max_depth=args.max_depth,
         w_simps=_parse_floats(args.w_simps), w_simis=_parse_floats(args.w_simis),
-        dpi=args.dpi,
         save_pareto_trees=args.save_pareto_trees,
         fixed=args.fixed,
     )

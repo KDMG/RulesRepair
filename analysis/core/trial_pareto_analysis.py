@@ -106,10 +106,8 @@ def run_trial_pareto_analysis(
     f1_col="acc_new_test", nodes_col="total_nodes", sim_col="pct_reaudit_new",
     w_simp_col="w_simp", w_simi_col="w_simi", t_col="t",
     cart_f1_col="acc_cart_test", cart_nodes_col="cart_total_nodes", cart_sim_col="pct_reaudit_cart",
-    dpi=300, metric_label="Accuracy", metric_header="Accuracy test",
+    metric_header="Accuracy test",
     reaudit_maximize=False,
-    reaudit_axis_label="Percentage of nodes needing re-audit",
-    reaudit_title_phrase="re-audit percentage",
     reaudit_header="Reaudit %",
 ):
     csv_path = Path(csv_path)
@@ -141,17 +139,13 @@ def run_trial_pareto_analysis(
     run_pareto_analysis(
         csv_path=aggregated_csv, out_dir=out_dir / "aggregated",
         f1_col=f"{f1_col}_median", nodes_col=f"{nodes_col}_median", reaudit_col=f"{sim_col}_median",
-        sim_col=f"{sim_col}_median",
         w_simp_col=w_simp_col, w_simi_col=w_simi_col, t_col=t_col,
         cart_f1_col=f"{cart_f1_col}_median" if has_cart else cart_f1_col,
         cart_nodes_col=f"{cart_nodes_col}_median" if has_cart else cart_nodes_col,
         cart_reaudit_col=f"{cart_sim_col}_median" if has_cart else cart_sim_col,
-        dpi=dpi,
         reaudit_maximize=reaudit_maximize,
-        reaudit_axis_label=reaudit_axis_label,
-        reaudit_title_phrase=reaudit_title_phrase,
         reaudit_header=reaudit_header,
-        metric_label=metric_label, metric_header=metric_header,
+        metric_header=metric_header,
     )
 
     return out_dir
@@ -175,12 +169,8 @@ def main():
         help="Maximize --sim-col instead of minimizing it (default: minimize, correct for pct_reaudit_new/cart; "
              "pass this flag when using a similarity column like sim_old_new_labeled instead).",
     )
-    parser.add_argument("--reaudit-axis-label", default="Percentage of nodes needing re-audit")
-    parser.add_argument("--reaudit-title-phrase", default="re-audit percentage")
     parser.add_argument("--reaudit-header", default="Reaudit %")
-    parser.add_argument("--metric-label", default="Accuracy", help="Axis/title label for --f1-col (default 'Accuracy').")
     parser.add_argument("--metric-header", default="Accuracy test", help="Printed summary-table column header for --f1-col (default 'Accuracy test').")
-    parser.add_argument("--dpi", type=int, default=300)
     args = parser.parse_args()
 
     csv_path = Path(args.csv_path)
@@ -189,13 +179,11 @@ def main():
     run_trial_pareto_analysis(
         csv_path=csv_path, out_dir=out_dir,
         reaudit_maximize=args.reaudit_maximize,
-        reaudit_axis_label=args.reaudit_axis_label,
-        reaudit_title_phrase=args.reaudit_title_phrase,
         reaudit_header=args.reaudit_header,
         f1_col=args.f1_col, nodes_col=args.nodes_col, sim_col=args.sim_col,
         w_simp_col=args.w_simp_col, w_simi_col=args.w_simi_col, t_col=args.t_col,
         cart_f1_col=args.cart_f1_col, cart_nodes_col=args.cart_nodes_col, cart_sim_col=args.cart_sim_col,
-        dpi=args.dpi, metric_label=args.metric_label, metric_header=args.metric_header,
+        metric_header=args.metric_header,
     )
 
 

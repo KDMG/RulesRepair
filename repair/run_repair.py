@@ -19,7 +19,7 @@ def run_both(
     dp, data_csv, out_dir,
     normative_model="normative_model.pkl", target="branch",
     adapt_fraction=0.7, split_method="case_chronological", split_seed=0, max_depth=4,
-    w_simps=(0.0, 5.0), w_simis=(0.0, 1.0), dpi=300,
+    w_simps=(0.0, 5.0), w_simis=(0.0, 1.0),
     save_pareto_trees=False,
     operator_names=None,
     p=DEFAULT_P, degradation_threshold=DEFAULT_DEGRADATION_THRESHOLD, seed=0,
@@ -49,7 +49,7 @@ def run_both(
             dp=dp, data_csv=data_csv, out_dir=out_dir,
             normative_model=normative_model, target=target,
             adapt_fraction=adapt_fraction, split_method=split_method, split_seed=split_seed,
-            max_depth=max_depth, w_simps=w_simps, w_simis=w_simis, dpi=dpi,
+            max_depth=max_depth, w_simps=w_simps, w_simis=w_simis,
             save_pareto_trees=save_pareto_trees,
             fixed=fixed,
         )
@@ -60,7 +60,7 @@ def run_both(
         normative_model_path=normative_model, dp=dp, data_csv=data_csv, target=target,
         adapt_fraction=adapt_fraction, split_method=split_method, split_seed=split_seed,
         out_dir=mutated_dir, operator_names=operator_names,
-        w_simps=w_simps, w_simis=w_simis, max_depth=max_depth, dpi=dpi,
+        w_simps=w_simps, w_simis=w_simis, max_depth=max_depth,
         p=p, degradation_threshold=degradation_threshold, seed=seed,
         n_thresholds=n_thresholds, max_regrow_attempts=max_regrow_attempts,
         regrow_max_depth=regrow_max_depth, regrow_split_prob=regrow_split_prob,
@@ -98,7 +98,6 @@ def main():
 
     parser.add_argument("--w-simps", default="0.0,0.001,0.005,0.01,0.02,0.05,0.1,0.2,0.3,0.5,0.75,1.0,1.5,2.0,3.0,5.0", help="Comma-separated w_simp grid, shared by both runs. Normalized scale (complexity term / nodes_max).")
     parser.add_argument("--w-simis", default="0.0,0.001,0.005,0.01,0.02,0.05,0.1,0.2,0.3,0.5,0.75,1.0,1.5", help="Comma-separated w_simi grid, shared by both runs. Normalized scale (audit term / nodes_max).")
-    parser.add_argument("--dpi", type=int, default=300)
     parser.add_argument(
         "--save-pareto-trees", action=argparse.BooleanOptionalAction, default=False,
         help="Baseline only: regenerate/pickle every per-trial Pareto-optimal repaired tree to baseline/pareto_trees.pkl.",
@@ -159,7 +158,7 @@ def main():
         adapt_fraction=args.adapt_fraction, split_method=args.split_method, split_seed=args.split_seed,
         max_depth=args.max_depth,
         w_simps=_parse_floats(args.w_simps), w_simis=_parse_floats(args.w_simis),
-        dpi=args.dpi, save_pareto_trees=args.save_pareto_trees,
+        save_pareto_trees=args.save_pareto_trees,
         operator_names=operator_names,
         p=args.p, degradation_threshold=args.degradation_threshold, seed=args.seed,
         n_thresholds=args.n_thresholds, max_regrow_attempts=args.max_regrow_attempts,
