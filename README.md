@@ -8,7 +8,7 @@ To run our application you need to have installed:
 
 * [Python 3.9](https://www.python.org/downloads/)
 
-* [Poetry 2.2.1](https://python-poetry.org/docs/#installation) (the committed `poetry.lock` was generated with 2.2.1), to install the dependencies listed in `pyproject.toml`
+* [Poetry 2.2.1](https://python-poetry.org/docs/#installation) (the `poetry.lock` was generated with 2.2.1), to install the dependencies listed in `pyproject.toml`
 
 * [Graphviz](https://graphviz.org/download/), required by the `graphviz` Python package to render trees
 
