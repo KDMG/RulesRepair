@@ -42,8 +42,6 @@ Replace `sepsis` with the desired dataset name to reproduce the experiments for 
 
 ### Quantitative evaluation
 
-Once `experiments/<dataset>/repair/seed_*/<dp>/` holds `pareto_per_trial.csv` files for all decision points and seeds, compute RQ1 and RQ2. Results are written to `evaluation/quantitative/`.
-
 **Computational time:** every row of `results.csv` stores the per-trial training time in the `*_train_time_sec` columns; aggregate them directly with pandas, e.g. `df.groupby("mutation_type")["repair_train_time_sec"].mean()`.
 
 **RQ1 (dominance over the baselines):**
