@@ -23,8 +23,8 @@ git clone https://github.com/KDMG/RulesRepair/
 cd RulesRepair/
 
 poetry env use python3.9
-# poetry lock only if you have problems with the pre-generated lock file
 poetry install
+# poetry lock if your received an error (you may have a poetry version different from 2.2.1)
 source $(poetry env info --path)/bin/activate
 ```
 
