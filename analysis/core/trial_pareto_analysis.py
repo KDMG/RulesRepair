@@ -69,10 +69,10 @@ def require_same_trial_sets(df, w_simp_col="w_simp", w_simi_col="w_simi", t_col=
         raise ValueError(
             f"Configs do not share the exact same trial_id set: {len(mismatched)} of {len(trial_sets)} "
             f"(w_simp,w_simi,t) configs differ from the reference (even if some have the same COUNT).\n"
-            f"  reference config {reference_config}: {len(reference_set)} trials, e.g. {sorted(reference_set)[:3]}\n"
-            f"  mismatched config {example_config}: {len(example_set)} trials, e.g. {sorted(example_set)[:3]}\n"
-            f"  only in reference: {sorted(reference_set - example_set)[:3]}\n"
-            f"  only in mismatched: {sorted(example_set - reference_set)[:3]}"
+            f"reference config {reference_config}: {len(reference_set)} trials, e.g. {sorted(reference_set)[:3]}\n"
+            f"mismatched config {example_config}: {len(example_set)} trials, e.g. {sorted(example_set)[:3]}\n"
+            f"only in reference: {sorted(reference_set - example_set)[:3]}\n"
+            f"only in mismatched: {sorted(example_set - reference_set)[:3]}"
         )
     return reference_set
 
@@ -165,12 +165,10 @@ def main():
     parser.add_argument("--cart-nodes-col", default="cart_total_nodes")
     parser.add_argument("--cart-sim-col", default="pct_reaudit_cart")
     parser.add_argument(
-        "--reaudit-maximize", action="store_true", default=False,
-        help="Maximize --sim-col instead of minimizing it (default: minimize, correct for pct_reaudit_new/cart; "
-             "pass this flag when using a similarity column like sim_old_new_labeled instead).",
+        "--reaudit-maximize", action="store_true", default=False
     )
     parser.add_argument("--reaudit-header", default="Reaudit %")
-    parser.add_argument("--metric-header", default="Accuracy test", help="Printed summary-table column header for --f1-col (default 'Accuracy test').")
+    parser.add_argument("--metric-header", default="Accuracy test")
     args = parser.parse_args()
 
     csv_path = Path(args.csv_path)

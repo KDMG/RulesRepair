@@ -251,13 +251,7 @@ def main():
     parser.add_argument("--cart-nodes-col", default=DEFAULT_CART_NODES_COL)
     parser.add_argument("--cart-reaudit-col", default=DEFAULT_CART_REAUDIT_COL)
     parser.add_argument(
-        "--reaudit-maximize", action=argparse.BooleanOptionalAction, default=True,
-        help="Direction for --reaudit-col: maximize (default -- e.g. sim_old_new, rule-set similarity "
-             "to T_old, matching grid_search_dp.py's own default analysis and "
-             "trial_pareto_analysis.py/run_baseline_repair.py) or minimize (e.g. pct_to_reaudit, the "
-             "original re-audit-cost analysis). To reproduce the original re-audit-cost Pareto "
-             "analysis, pass --reaudit-col pct_to_reaudit --cart-reaudit-col cart_pct_to_reaudit "
-             "--no-reaudit-maximize.",
+        "--reaudit-maximize", action=argparse.BooleanOptionalAction, default=True
     )
     parser.add_argument("--reaudit-header", default=None, help="Override third-objective column header in the printed summary table (default depends on --reaudit-maximize).")
     parser.add_argument("--metric-header", default="F1 test", help="Printed summary-table column header for --f1-col (default 'F1 test').")

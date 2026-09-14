@@ -10,10 +10,6 @@ import pm4py
 
 from mining.extract_decision_points import find_decision_points, declared_variables, fix_final_marking
 
-# pareto_explorer is a local GUI tool, not part of the public repo (see
-# .gitignore) -- import it lazily inside render_preview() so this module
-# (needed by the core mining pipeline) still works without it. Preview
-# rendering is then simply skipped where it's not available.
 DEFAULT_DPI = 130
 
 

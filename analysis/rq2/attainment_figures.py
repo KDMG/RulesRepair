@@ -64,10 +64,7 @@ def attainment_difference(per_seed_trials, z_grid, tol=DEFAULT_TOL):
     for seed, trials in per_seed_trials.items():
         if not trials:
             raise ValueError(
-                f"seed {seed} has an empty trial list -- build_per_seed_trials() must OMIT zero-trial "
-                f"seeds entirely rather than including them as empty lists (a seed with no data for this "
-                f"view does not contribute to the D(z) average at all, per Step 4 of the design; see that "
-                f"function's docstring)."
+                f"seed {seed} has an empty trial list."
             )
         rulesrepair_sets = [t[0] for t in trials]
         baseline_sets = [[t[1]] for t in trials]
@@ -83,7 +80,7 @@ def build_per_seed_trials(csv_paths, mutation_type=None, max_depth=DEFAULT_MAX_D
     for p in csv_paths:
         seed = infer_seed_from_path(p)
         if seed is None:
-            raise ValueError(f"{p}: no 'seed_<N>' segment found in the path -- every input must be seed-tagged.")
+            raise ValueError(f"{p}: no 'seed_<N>' segment found in the path.")
         dp_labels.add(infer_dp_label(p))
         df = pd.read_csv(p)
         if mutation_type is not None:
@@ -99,8 +96,7 @@ def build_per_seed_trials(csv_paths, mutation_type=None, max_depth=DEFAULT_MAX_D
             per_seed[seed] = list(trial_sets.values())
     if len(dp_labels) > 1:
         raise ValueError(
-            f"Input paths span {len(dp_labels)} different decision points ({sorted(dp_labels)}) -- "
-            f"pass paths for exactly one decision point at a time."
+            f"Input paths span {len(dp_labels)} different decision points ({sorted(dp_labels)})"
         )
     return per_seed
 
@@ -154,8 +150,7 @@ def attainment_components(per_seed_trials, z_grid, tol=DEFAULT_TOL):
     for seed, trials in per_seed_trials.items():
         if not trials:
             raise ValueError(
-                f"seed {seed} has an empty trial list -- build_per_seed_trials() must OMIT zero-trial "
-                f"seeds entirely (see attainment_difference()'s identical check)."
+                f"seed {seed} has an empty trial list"
             )
         rulesrepair_sets = [t[0] for t in trials]
         baseline_sets = [[t[1]] for t in trials]
@@ -208,8 +203,7 @@ def eafdiff_maximise_crosscheck(rulesrepair_per_seed_points, baseline_per_seed_p
     baseline_seeds = set(baseline_per_seed_points.keys())
     if rulesrepair_seeds != baseline_seeds:
         raise ValueError(
-            f"Unbalanced design: RulesRepair seeds {sorted(rulesrepair_seeds)} != baseline seeds {sorted(baseline_seeds)} -- "
-            f"this cross-check requires the SAME seed set (paired, one set per seed) on both sides."
+            f"unbalanced."
         )
     n_seeds = len(rulesrepair_seeds)
 
@@ -226,7 +220,7 @@ def eafdiff_maximise_crosscheck(rulesrepair_per_seed_points, baseline_per_seed_p
     }
     our_D, our_n_seeds = attainment_difference(per_seed_trials, transition_points, tol=tol)
     if our_n_seeds != n_seeds:
-        raise ValueError(f"internal check failed: our_n_seeds={our_n_seeds} != n_seeds={n_seeds}")
+        raise ValueError(f"internal check failed.")
 
     return transition_points, our_D, moocore_D, n_seeds
 
@@ -296,10 +290,7 @@ def plot_attainment_difference_slices(
 ):
     if len(field_df) == 0:
         raise ValueError(
-            "field_df is empty -- nothing to plot. This view (dataset/decision point/mutation type "
-            "combination) had zero trials in every seed (see analysis.attainment_field's 'not applicable' "
-            "convention); check for this case before calling plot_attainment_difference_slices(), do not "
-            "plot an empty field silently."
+            "field_df is empty."
         )
 
     slice_values = select_representative_accuracy_slices(field_df["acc"].to_numpy(), percentiles=percentiles)
@@ -397,9 +388,7 @@ def plot_eaf_accuracy_slices_figure(
 ):
     if len(components_field_df) == 0:
         raise ValueError(
-            "components_field_df is empty -- nothing to plot. This view (dataset/decision point/mutation "
-            "type combination) had zero trials in every seed; check for this case before calling "
-            "plot_eaf_accuracy_slices_figure(), do not plot an empty field silently."
+            "components_field_df is empty."
         )
 
     slice_values = select_representative_accuracy_slices(
@@ -543,8 +532,7 @@ def plot_eaf_slicing_figure(
 ):
     if len(components_field_df) == 0:
         raise ValueError(
-            "components_field_df is empty -- nothing to plot. This view had zero trials in every seed; "
-            "check for this case before calling plot_eaf_slicing_figure()."
+            "components_field_df is empty."
         )
     i_axis, j_axis = rotated_axes
     n_angles = len(angles)
@@ -592,8 +580,7 @@ def plot_eaf_mip_figure(
 ):
     if len(components_field_df) == 0:
         raise ValueError(
-            "components_field_df is empty -- nothing to plot. This view had zero trials in every seed; "
-            "check for this case before calling plot_eaf_mip_figure()."
+            "components_field_df is empty."
         )
     i_axis, j_axis = rotated_axes
     i_vals = np.sort(components_field_df[i_axis].unique())
@@ -645,10 +632,7 @@ def plot_eaf_mip_figure(
 def plot_attainment_field_3d(field_df, marker_size=14, figsize=(6.4, 5.2), elev=22, azim=-60):
     if len(field_df) == 0:
         raise ValueError(
-            "field_df is empty -- nothing to plot. This view (dataset/decision point/mutation type "
-            "combination) had zero trials in every seed (see analysis.attainment_field's 'not applicable' "
-            "convention); check for this case before calling plot_attainment_field_3d(), do not plot an "
-            "empty field silently."
+            "field_df is empty."
         )
 
     d_values = field_df["D"].to_numpy()
@@ -838,11 +822,7 @@ def main_outputs(argv=None):
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument(
         "csv_paths", nargs="+",
-        help="pareto_per_trial.csv paths, one or more decision points x seeds (glob-expanded by your "
-             "shell) -- each path must contain a 'seed_<N>' segment (same contract as "
-             "igd_statistical_comparison.py / attainment_field.py). Point this at the NON-fixed "
-             "'mutated/analysis/pareto_per_trial.csv' files unless you deliberately want the --fixed run's "
-             "'mutated_fixed/analysis/pareto_per_trial.csv' instead.",
+        help="pareto_per_trial.csv paths.",
     )
     parser.add_argument(
         "--dataset", required=True,
@@ -857,18 +837,12 @@ def main_outputs(argv=None):
     parser.add_argument("--baseline-jaccard-col", default="sim_old_cart_jaccard")
     parser.add_argument(
         "--out-dir", default=None,
-        help="Directory to write attainment_field_<dataset>_<dp>_<view>.csv/.npz (one pair per "
-             "decision-point x view) plus attainment_field_summary.csv (one row per view, across every "
-             "decision point processed) into -- created if missing. Default: "
-             "quantitative_evaluation/rq2/attainment_outputs/.",
+        help="Directory to write attainment_field_<dataset>_<dp>_<view>.csv/.npz.",
     )
     parser.add_argument(
         "--by-mutation-type", action="store_true",
         help="Also compute+write one view per canonical mutation type (analysis.mutation_types."
-             "MUTATION_TYPES), in addition to the overall view (always computed). A type with zero "
-             "trials at a decision point is 'not applicable' -- reported in the summary CSV with "
-             "not_applicable=True, no per-view CSV/NPZ written for it (same convention as "
-             "igd_statistical_comparison.py's --by-mutation-type).",
+             "MUTATION_TYPES).",
     )
     args = parser.parse_args(argv)
 
@@ -918,11 +892,7 @@ def main_outputs(argv=None):
 
 
 TRIAL_LEVEL_CAVEAT = (
-    "SUPPLEMENTARY, TRIAL-LEVEL -- every trial from every seed pooled with equal weight "
-    "(no per-seed aggregation). NOT the primary RQ3 result: trials within a seed are not "
-    "independent (same T_old, same adapt/test split, same mutation-sampling random stream), "
-    "so a seed with more accepted trials counts more here. See the seed-weighted figure for "
-    "the validated RQ3 view."
+    "trial level"
 )
 
 
@@ -936,10 +906,7 @@ def select_representative_decision_points(df, baseline_label="CART", view="overa
         g = subset[subset["dataset"] == dataset]
         if len(g) == 0:
             raise ValueError(
-                f"dataset={dataset!r}: no applicable rows for view={view!r}, baseline={baseline_label!r} "
-                f"(either that baseline was never computed for this dataset, every decision point was "
-                f"'not applicable', or every hodges_lehmann value was NaN) -- cannot select a strongest/"
-                f"weakest decision point."
+                f"dataset={dataset!r}: no applicable rows for view={view!r}, baseline={baseline_label!r}."
             )
         strongest = g.loc[g["hodges_lehmann"].idxmax()]
         weakest = g.loc[g["hodges_lehmann"].idxmin()]
@@ -977,10 +944,7 @@ def render_selected_figures(
         paths = by_dp.get(dp_label)
         if not paths:
             raise FileNotFoundError(
-                f"No pareto_per_trial.csv paths found for decision_point={dp_label!r} among the "
-                f"{len(csv_paths)} csv_paths given for dataset={dataset!r} -- pass every seed's "
-                f"'mutated/analysis/pareto_per_trial.csv' for this dataset (see module docstring's USAGE), "
-                f"this function never renders from a partial/wrong set of paths."
+                f"No pareto_per_trial.csv paths found for decision_point={dp_label!r}."
             )
         build_fn = build_pooled_trials if trial_level else build_per_seed_trials
         per_seed = build_fn(
@@ -1094,29 +1058,16 @@ def render_dataset_level(
 def main_render_figures(argv=None):
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument(
-        "rq_table_csvs", nargs="*",
-        help="rq_unified_<dataset>.csv path(s) (analysis/rq_results_latex.py's RQ1/RQ2 table output) -- "
-             "one or more, concatenated if several; only the row(s) matching --dataset are used for "
-             "decision-point selection. NOT needed with --all-dps (no selection happens in that mode) -- "
-             "omit it entirely in that case.",
+        "rq_table_csvs", nargs="*"
     )
     parser.add_argument(
-        "--dataset", required=True,
-        help="Which dataset to render RQ3 figures for -- must match a 'dataset' value present in "
-             "rq_table_csvs. ONE dataset per invocation (see module docstring's USAGE) -- run this script "
-             "once per dataset to regenerate all of them.",
+        "--dataset", required=True
     )
     parser.add_argument(
-        "--pareto-csvs", nargs="+", required=True,
-        help="Raw pareto_per_trial.csv paths for --dataset (glob-expanded by your shell), one or more "
-             "seeds x one or more decision points -- point this at the NON-fixed "
-             "'mutated/analysis/pareto_per_trial.csv' files (same contract as attainment_field_outputs.py).",
+        "--pareto-csvs", nargs="+", required=True
     )
     parser.add_argument(
-        "--baseline-label", default="CART",
-        help="Which baseline's RQ1/RQ2 numbers to use for decision-point selection, and which baseline_* "
-             "columns to read from --pareto-csvs -- default CART (explicit user decision, 2026, see "
-             "select_representative_decision_points()'s docstring).",
+        "--baseline-label", default="CART"
     )
     parser.add_argument("--max-depth", type=int, default=DEFAULT_MAX_DEPTH)
     parser.add_argument("--nodes-min", type=int, default=DEFAULT_NODES_MIN)
@@ -1125,41 +1076,16 @@ def main_render_figures(argv=None):
     parser.add_argument("--baseline-nodes-col", default="cart_total_nodes")
     parser.add_argument("--baseline-jaccard-col", default="sim_old_cart_jaccard")
     parser.add_argument(
-        "--out-dir", default=None,
-        help="Directory to write the rendered PNG figures into. Default: "
-             "quantitative_evaluation/rq2/render_figures/.",
+        "--out-dir", default=None
     )
     parser.add_argument(
-        "--all-dps", action="store_true",
-        help="2026 addition, explicit user request (\"print them for every decision point of every "
-             "dataset\"): render EVERY decision point found in --pareto-csvs instead of only the "
-             "strongest/weakest 2 -- no rq_table_csvs/Hodges-Lehmann-based selection at all in this mode "
-             "(rq_table_csvs may be omitted). Each figure's field pools EVERY accepted mutation trial of "
-             "that decision point (every operator, every mutant, every seed, 'overall' view) -- there is "
-             "no single 'the mutant used' for any of these figures, same as the strongest/weakest ones.",
+        "--all-dps", action="store_true"
     )
     parser.add_argument(
-        "--dataset-level", action="store_true",
-        help="2026 addition, explicit user request (\"don't split by decision point at all... do it "
-             "per dataset\"): render ONE figure for the WHOLE dataset, pooling every "
-             "decision point found in --pareto-csvs together (not one figure per dp) -- rq_table_csvs is "
-             "not needed and is ignored. ALWAYS trial-level (no seed averaging, no --trial-level needed/"
-             "accepted with this flag) and ALWAYS uses Q1/Median/Q3 observed-Accuracy slices instead of "
-             "Min/Median/Max (see render_dataset_level()'s docstring). Mutually exclusive with --all-dps "
-             "in practice (dataset-level takes priority if both are given).",
+        "--dataset-level", action="store_true"
     )
     parser.add_argument(
-        "--trial-level", action="store_true",
-        help="2026 addition, explicit user request. SUPPLEMENTARY ONLY -- renders the attainment field "
-             "pooling every trial from every seed with EQUAL weight (no per-seed aggregation) instead of "
-             "this pipeline's primary equal-per-seed-weighted average. Decision-point SELECTION (strongest/"
-             "weakest) is unaffected -- it still uses the validated seed-level RQ1/RQ2 Hodges-Lehmann value; "
-             "only the rendered FIELD itself changes. Output filenames get a '_trial_level' tag so they "
-             "never collide with the primary PNGs, and the figure itself is stamped with a caveat. "
-             "CAVEAT: trials within a seed are not independent (same T_old, same adapt/test split, same "
-             "mutation-sampling random stream) -- a seed with more accepted trials counts more here. See "
-             "attainment_field.py's build_pooled_trials() docstring for the full rationale. The seed-"
-             "weighted figure (no --trial-level) remains the PRIMARY, validated RQ3 result.",
+        "--trial-level", action="store_true"
     )
     args = parser.parse_args(argv)
 
@@ -1168,8 +1094,7 @@ def main_render_figures(argv=None):
 
     if args.dataset_level:
         print(
-            f"[{args.dataset}] rendering ONE pooled figure for the WHOLE dataset (every decision point "
-            f"pooled together) [baseline={args.baseline_label}]  [TRIAL-LEVEL, Q1/Median/Q3 Accuracy slices]"
+            f"[{args.dataset}] one figure for the whole dataset"
         )
         written = render_dataset_level(
             args.pareto_csvs, args.dataset, out_dir=args.out_dir, baseline_label=args.baseline_label,

@@ -53,8 +53,6 @@ def _alternatives_for_node(operator, node, classes, thresholds_pool, columns,
         rng.shuffle(alts)
         for label in alts:
             def apply_fn(n, _label=label):
-                # force the specific label deterministically instead of
-                # letting prune() re-randomize it
                 prune(n, classes, rng=random)
                 n.label = _label
                 n.value = [1 if c == _label else 0 for c in classes]
@@ -105,9 +103,6 @@ def _alternatives_for_node(operator, node, classes, thresholds_pool, columns,
             seed_for_attempt = rng.randrange(2**31)
             def apply_fn(n, _root_ref=node, _seed=seed_for_attempt):
                 local_rng = random.Random(_seed)
-                # `root` argument to regrow() is only used to compute a
-                # collision-free starting node_id -- pass the CLONED
-                # tree's own root (n may not be the root, so walk up).
                 cloned_root = n
                 while cloned_root.parent is not None:
                     cloned_root = cloned_root.parent

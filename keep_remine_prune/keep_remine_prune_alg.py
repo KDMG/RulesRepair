@@ -10,8 +10,8 @@ from .tree import DecisionNode, count_values, gini_impurity
 from .tree import grow_tree as our_grow_tree
 
 
-OLD = False # Old node (is_new = False)
-NEW = True  # New node (is_new = True)
+OLD = False # old node (is_new = False)
+NEW = True  # new node (is_new = True)
 
 
 def _uid():

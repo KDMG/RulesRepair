@@ -371,51 +371,18 @@ def print_summary_table(df, title):
 
 def main_cart_summary(argv=None):
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("csv_paths", nargs="+",
-                         help="pareto_per_trial.csv files (glob-expanded by your shell), any mix of datasets - "
-                              "OR, with -merge, previously-saved -raw-out CSVs from separate runs/machines")
+    parser.add_argument("csv_paths", nargs="+")
     parser.add_argument("-tol", type=float, default=DEFAULT_TOL)
     parser.add_argument("-max-depth", type=int, default=DEFAULT_MAX_DEPTH)
     parser.add_argument("-nodes-min", type=int, default=DEFAULT_NODES_MIN)
-    parser.add_argument("-out-csv", default=None, help="Optional: save all four summary tables (dataset/operator/overall/decision_point) to a single CSV with a 'scope' column")
-    parser.add_argument("-raw-out", default=None,
-                         help="Optional: also save the raw per-trial frac_dominated_by_cart_strict (D_i, strict "
-                              "Pareto dominance, exact ties NOT counted) values (one row per trial, with "
-                              "dataset/operator/decision_point/seed columns) to this CSV. Use this on each "
-                              "machine/dataset separately, then combine every dataset's -raw-out file later "
-                              "with -merge on a single machine - median/Q1/Q3 computed separately per dataset "
-                              "and then re-combined afterwards would NOT give the same (correct) numbers as "
-                              "pooling the raw per-trial values first, since a median of medians is not the "
-                              "true pooled median.")
-    parser.add_argument("-merge", action="store_true",
-                         help="Treat csv_paths as -raw-out files from previous runs (one per dataset/machine) "
-                              "instead of pareto_per_trial.csv files - concatenates them and summarizes "
-                              "directly, without re-reading the original per-decision-point CSVs or "
-                              "recomputing dominance (already baked into the raw files).")
-    parser.add_argument("-latex-out", default=None,
-                         help="Save the by-dataset x by-operator LaTeX table (one row per dataset, columns "
-                              "Overall + each mutation operator, median [Q1, Q3] per cell) to this file.")
-    parser.add_argument("-dom-cov-raw-out", default=None,
-                         help="2026 addition: save the raw per-trial-per-algorithm Dominance/Max-coverage "
-                              "values (CART/C4.5=J48 bounded/REPTree, one row per trial per algorithm) to "
-                              "this CSV, for later manual verification.")
-    parser.add_argument("-dom-cov-csv-out", default=None,
-                         help="2026 addition: save the aggregated Dataset x Mine-algorithm Dominance(%%)/"
-                              "Max coverage(%%) table (one row per dataset x algorithm, one column pair per "
-                              "mutation type plus Overall) to this CSV.")
-    parser.add_argument("-dom-cov-latex-out", default=None,
-                         help="2026 addition: save the Dataset x Mine-algorithm Dominance(%%)/Max coverage(%%) "
-                              "table, with a multi-level LaTeX header (Overall + each mutation type, each "
-                              "split into Dom.(%%)/Max cov.(%%) sub-columns), to this file.")
-    parser.add_argument("-dom-cov-merge", nargs="+", default=None, metavar="RAW_CSV",
-                         help="2026 addition: rebuild the Dominance/Max-coverage table from previously-saved "
-                              "-dom-cov-raw-out CSVs (one per dataset/machine) instead of re-reading the "
-                              "original pareto_per_trial.csv files - the multi-machine workflow: run with "
-                              "-dom-cov-raw-out on each machine/dataset, download the small raw CSVs, then "
-                              "pass them all here in one invocation on a single machine. Independent of "
-                              "-merge/csv_paths above (which still drive the median+IQR RQ1 tables); can be "
-                              "combined with -merge in the same invocation to rebuild BOTH tables purely "
-                              "from raw CSVs, with no original pareto_per_trial.csv needed at all.")
+    parser.add_argument("-out-csv", default=None)
+    parser.add_argument("-raw-out", default=None)
+    parser.add_argument("-merge", action="store_true")
+    parser.add_argument("-latex-out", default=None)
+    parser.add_argument("-dom-cov-raw-out", default=None)
+    parser.add_argument("-dom-cov-csv-out", default=None)
+    parser.add_argument("-dom-cov-latex-out", default=None)
+    parser.add_argument("-dom-cov-merge", nargs="+", default=None, metavar="RAW_CSV")
     args = parser.parse_args(argv)
 
     _default_dir = Path("quantitative_evaluation") / "rq1" / "cart_summary"

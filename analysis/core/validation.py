@@ -1,11 +1,3 @@
-"""Shared small validation-report helper.
-
-Used by the RQ1 dominance/ and RQ2 statistical/ analysis packages to
-accumulate PASS/FAIL checks and warnings while building a table, then print
-one consolidated report at the end of a run.
-"""
-
-
 class ValidationReport:
     def __init__(self):
         self.checks = []

@@ -1,9 +1,3 @@
-"""Aggregate per-trial computation time out of results.csv files (baseline
-and/or mutated repair pipeline) into compact summary tables: overall, by
-mutation type, and by decision point.
-
-    python -m analysis.core.computational_time experiments/<dataset>/repair/seed_*/*/mutated/results.csv
-"""
 import argparse
 import re
 from pathlib import Path
@@ -13,8 +7,6 @@ import pandas as pd
 _DATASET_RE = re.compile(r"experiments[/\\]([^/\\]+)[/\\]repair[/\\]")
 _SEED_RE = re.compile(r"seed_([^/\\]+)[/\\]")
 
-# column -> human-readable algorithm name. rulesrepair_grow_time_sec is the
-# repair algorithm itself; the rest are the baselines it's compared against.
 TIME_COLUMNS = {
     "rulesrepair_grow_time_sec": "RulesRepair",
     "cart_train_time_sec": "CART",
