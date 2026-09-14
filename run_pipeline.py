@@ -4,14 +4,33 @@ import subprocess
 import sys
 from pathlib import Path
 
-RAW_XES_BY_DATASET = {
-    "sepsis": "datasets/sepsis/sepsis.xes",
-    "production": "datasets/production/Production.xes",
-    "hospital_billing": "datasets/hospital_billing/hospital_billing.xes",
-    "road_traffic": "datasets/road_traffic/road_traffic.xes",
-    "prepaid_travel_costs": "datasets/prepaid_travel_costs/PrepaidTravelCost.xes",
-    "international_declarations": "datasets/international_declarations/InternationalDeclarations.xes_",
+DATASET_INFO = {
+    "sepsis": {
+        "path": "datasets/sepsis/sepsis.xes",
+        "url": "https://doi.org/10.4121/uuid:915d2bfb-7e84-49ad-a286-dc35f063a460",
+    },
+    "production": {
+        "path": "datasets/production/Production.xes",
+        "url": "https://doi.org/10.4121/uuid:68726926-5ac5-4fab-b873-ee76ea412399",
+    },
+    "hospital_billing": {
+        "path": "datasets/hospital_billing/Hospital Billing - Event Log.xes.gz",
+        "url": "https://doi.org/10.4121/uuid:76c46b83-c930-4798-a1c9-4be94dfeb741",
+    },
+    "road_traffic": {
+        "path": "datasets/road_traffic/Road_Traffic_Fine_Management_Process.xes.gz",
+        "url": "https://doi.org/10.4121/uuid:270fd440-1057-4fb9-89a9-b699b47990f5",
+    },
+    "prepaid_travel_costs": {
+        "path": "datasets/prepaid_travel_costs/PrepaidTravelCost.xes",
+        "url": "https://doi.org/10.4121/uuid:5d2fe5e1-f91f-4a3b-ad9b-9e4126870165",
+    },
+    "international_declarations": {
+        "path": "datasets/international_declarations/InternationalDeclarations.xes_",
+        "url": "https://doi.org/10.4121/uuid:2bbf8f6a-fc50-48eb-aa9e-c4ea5ef7e8c5",
+    },
 }
+TUE_SEARCH_URL = "https://data.4tu.nl/search?q=event+log"
 
 REPO_ROOT = Path(__file__).resolve().parent
 
@@ -27,7 +46,7 @@ def parse_args(argv):
     )
     parser.add_argument(
         "--dataset", required=True,
-        help=f"Known datasets: {', '.join(RAW_XES_BY_DATASET)}",
+        help=f"Known datasets: {', '.join(DATASET_INFO)}",
     )
     parser.add_argument("--skip-split", action="store_true")
     parser.add_argument("--skip-mine-pn", action="store_true")
@@ -42,12 +61,16 @@ def parse_args(argv):
 def main(argv=None):
     args, repair_args = parse_args(argv if argv is not None else sys.argv[1:])
 
-    raw_xes = RAW_XES_BY_DATASET.get(args.dataset)
-    if raw_xes is None:
-        print(f"ERROR: unknown dataset '{args.dataset}'. "
-              f"Known datasets: {', '.join(RAW_XES_BY_DATASET)}")
-        print("(to add a new one, add an entry to RAW_XES_BY_DATASET "
-              "at the top of this script)")
+    info = DATASET_INFO.get(args.dataset)
+    if info is None:
+        print(f"ERROR: unknown dataset '{args.dataset}'. Known datasets: {', '.join(DATASET_INFO)}")
+        print(f"For any other event log, search 4TU.ResearchData: {TUE_SEARCH_URL}")
+        return 1
+
+    raw_xes = info["path"]
+    if not (REPO_ROOT / raw_xes).exists():
+        print(f"ERROR: '{args.dataset}' event log not found at {raw_xes}")
+        print(f"Download it from {info['url']} and place it there.")
         return 1
 
     dataset = args.dataset
