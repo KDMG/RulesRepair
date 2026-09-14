@@ -8,7 +8,7 @@ To run our application you need to have installed:
 
 * [Python 3.9](https://www.python.org/downloads/)
 
-* [Poetry 2.2.1](https://python-poetry.org/docs/#installation) (the committed `poetry.lock` was generated with 2.2.1), to install the dependencies listed in `pyproject.toml`
+* [Poetry 2.2.1](https://python-poetry.org/docs/#installation) (the `poetry.lock` was generated with 2.2.1), to install the dependencies listed in `pyproject.toml`
 
 * [Graphviz](https://graphviz.org/download/), required by the `graphviz` Python package to render trees
 
@@ -27,12 +27,6 @@ poetry install
 # poetry lock if your received an error (you may have a poetry version different from 2.2.1)
 source $(poetry env info --path)/bin/activate
 ```
-
-`run_pipeline.py` pins `PYTHONHASHSEED=0` for every step it runs, so mining the same event log always gives the same Petri net and decision points. If you ever run a `mining.*` or `repair.*` command directly (not through `run_pipeline.py`), set it yourself first:
-```bash
-export PYTHONHASHSEED=0
-```
-Without it, Python randomizes string hashing on every process start, which reshuffles pm4py's internal place numbering (and can occasionally change how a tie is broken during mining) -- so decision points could appear to shift or vanish between runs of the exact same log.
 
 ## Reproducing the experiments
 
