@@ -88,9 +88,7 @@ def _expand_and_label_paths(csv_paths, quiet=False):
         yield path, dataset, seed, decision_point
 
     if n_unmatched and not quiet:
-        print(f"\n{n_unmatched} file(s) had a path that didn't match the expected "
-              f"experiments/<dataset>/repair/... layout -- see warnings above; "
-              f"they were kept under dataset='unknown' rather than dropped.\n")
+        print(f"\n{n_unmatched} file(s) had an unexpected path, kept under dataset='unknown'.\n")
 
 
 OPERATOR_ORDER = [
@@ -179,7 +177,7 @@ def collect_multi_algorithm_dominance(csv_paths, algorithms=BASELINE_ALGORITHMS,
                     warn_key = (str(path), algo["key"])
                     if warn_key not in warned:
                         print(f"  Warning: {path}: missing column(s) {missing} for algorithm "
-                              f"{algo['display']} -- skipping this algorithm for this file.")
+                              f"{algo['display']}, skipping.")
                         warned.add(warn_key)
                     continue
                 a_acc = float(group[algo["acc_col"]].iloc[0])

@@ -175,12 +175,6 @@ input/.DS_Store
 # weight and a merge-conflict risk on every run. Raw/cut event logs are
 # assumed to already exist on every server (never traveled through git,
 # never will).
-datasets/*/*.xes
-datasets/*/*.xes.gz
-datasets/*/*.zip
-datasets/*_cut/*.xes
-datasets/*_cut/*.xes.gz
-datasets/data_driven_artificial/
 decision_points/
 experiments/
 experiments.zip

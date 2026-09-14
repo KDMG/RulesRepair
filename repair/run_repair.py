@@ -32,11 +32,11 @@ def run_both(
     preflight_adapt, preflight_test = split_adapt_test(df_data, target, adapt_fraction, split_method, split_seed)
     if len(preflight_adapt) == 0 or len(preflight_test) == 0:
         print(
-            f"Skipping '{dp}': only {len(df_data)} row(s) in {data_csv} -- splitting with "
-            f"adapt_fraction={adapt_fraction}, split_method={split_method} would produce an "
-            f"empty {'D_adapt' if len(preflight_adapt) == 0 else 'D_test'} "
-            f"({len(preflight_adapt)} adapt / {len(preflight_test)} test rows). This decision point has "
-            f"too little data to repair meaningfully; no results.csv/analysis written for it."
+            f"Skipping '{dp}': only {len(df_data)} row(s) in {data_csv}, "
+            f"splitting would produce an empty "
+            f"{'D_adapt' if len(preflight_adapt) == 0 else 'D_test'} "
+            f"({len(preflight_adapt)} adapt / {len(preflight_test)} test rows). "
+            f"Too little data, no results.csv written for it."
         )
         return None
 

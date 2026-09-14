@@ -67,9 +67,7 @@ def _fit_or_load_baseline_trees(df_adapt_raw, df_test_raw, max_depth, rs_true_ol
                 payload = pickle.load(f)
         finally:
             sys.setrecursionlimit(old_limit)
-        print(f"Baseline-tree cache hit at {cache_path}, reusing CART/CART-entropy/C4.5/"
-              f"J48(bounded+unbounded)/REPTree fits instead of refitting (identical "
-              f"across every --seed for this dp).", flush=True)
+        print(f"Baseline tree cache hit: {cache_path}", flush=True)
         return payload
 
     cart_start = time.perf_counter()
@@ -172,20 +170,15 @@ def run_mutated_repair(
     pkl_max_depth = dp_entry.get("max_depth")
     pkl_min_samples_leaf = dp_entry.get("min_samples_leaf")
     if pkl_max_depth is None or pkl_min_samples_leaf is None:
-        print(f"Warning: '{dp}' in {normative_model_path} has no 'max_depth'/'min_samples_leaf' "
-              f"(old pickle?) -- cannot verify that Keep-Regrow's sklearn_grow_func "
-              f"(max_depth={max_depth}, min_samples_leaf={SKLEARN_GROW_FUNC_MIN_SAMPLES_LEAF}) "
-              f"matches how T_old was mined. Rebuild with build_normative_model.py to enable this check.")
+        print(f"Warning: '{dp}' has no max_depth/min_samples_leaf recorded, "
+              f"cannot verify it matches how T_old was mined. Rebuild with build_normative_model.py.")
     else:
         if pkl_max_depth != max_depth:
-            print(f"Warning: T_old for '{dp}' was mined with max_depth={pkl_max_depth}, but "
-                  f"run_mutated_repair() is using max_depth={max_depth} -- pass --max-depth "
-                  f"{pkl_max_depth} to keep the regrow candidates consistent with T_old.")
+            print(f"Warning: T_old for '{dp}' was mined with max_depth={pkl_max_depth}, "
+                  f"but max_depth={max_depth} is being used now. Pass --max-depth {pkl_max_depth}.")
         if pkl_min_samples_leaf != SKLEARN_GROW_FUNC_MIN_SAMPLES_LEAF:
             print(f"Warning: T_old for '{dp}' was mined with min_samples_leaf={pkl_min_samples_leaf}, "
-                  f"but keep_remine_prune_alg.sklearn_grow_func hardcodes "
-                  f"min_samples_leaf={SKLEARN_GROW_FUNC_MIN_SAMPLES_LEAF} -- regrow candidates are "
-                  f"NOT consistent with how T_old was mined.")
+                  f"but regrow candidates use min_samples_leaf={SKLEARN_GROW_FUNC_MIN_SAMPLES_LEAF}.")
 
     df_data = pd.read_csv(data_csv)
 
@@ -202,8 +195,7 @@ def run_mutated_repair(
     pred_true_old_test = predict(true_old_tree, X_test)
     baseline_f1 = f1_macro(y_test, pred_true_old_test)
     baseline_acc = acc_score(y_test, pred_true_old_test)
-    print(f"Unperturbed test f1_macro of the true (unmutated) T_old: {baseline_f1:.3f} "
-          f"(accuracy: {baseline_acc:.3f})", flush=True)
+    print(f"T_old test accuracy: {baseline_acc:.3f}", flush=True)
 
     rs_true_old = tuple_tree_conversion(true_old_tree)
 
@@ -253,13 +245,8 @@ def run_mutated_repair(
     X_train_full, y_train_full = load_xy(df_data, cat_cols, columns)
     classes = sorted(set(y_adapt) | set(y_test))
 
-    print(f"Generating mutants: p={p:.0%} of compatible nodes per operator (ceil-rounded), "
-          f"degradation_threshold={degradation_threshold} (plain accuracy on D_adapt vs the TRUE "
-          f"T_old on D_adapt -- D_test plays no role in mutant acceptance), "
-          f"seed={seed}"
-          + (f", max_alternatives_per_node={max_alternatives_per_node} (opt-in cap on "
-                                            f"change_threshold/change_feature search)"
-             if max_alternatives_per_node is not None else ""),
+    print(f"Generating mutants: p={p:.0%}, degradation_threshold={degradation_threshold}, seed={seed}"
+          + (f", max_alternatives_per_node={max_alternatives_per_node}" if max_alternatives_per_node is not None else ""),
           flush=True)
     mutation_results, mutation_summary = generate_mutants(
         true_old_tree, X_train_full, columns, classes, X_adapt, y_adapt,
@@ -542,8 +529,8 @@ def run_mutated_repair(
                             rate = done / elapsed if elapsed > 0 else 0
                             eta_min = (total_evals - done) / rate / 60 if rate > 0 else float("inf")
                             print(
-                                f"  {done}/{total_evals} ({100 * done / total_evals:.1f}%) -- "
-                                f"trial {trial_idx}/{len(trials)} -- "
+                                f"  {done}/{total_evals} ({100 * done / total_evals:.1f}%), "
+                                f"trial {trial_idx}/{len(trials)}, "
                                 f"elapsed {elapsed / 60:.1f} min, ETA {eta_min:.1f} min",
                                 flush=True,
                             )

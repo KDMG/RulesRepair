@@ -67,7 +67,7 @@ def collect_dominated_solution_deltas(csv_paths, algorithms=BASELINE_ALGORITHMS,
                     warn_key = (str(path), algo["key"])
                     if warn_key not in warned:
                         print(f"  Warning: {path}: missing column(s) {missing} for algorithm "
-                              f"{algo['display']} -- skipping this algorithm for this file.")
+                              f"{algo['display']}, skipping.")
                         warned.add(warn_key)
                     continue
                 a_acc = float(group[algo["acc_col"]].iloc[0])
@@ -502,8 +502,7 @@ def main_dominance_advantage(argv=None):
     print_rq2_diagnostics(per_trial_df, multi_algo_df)
 
     print("\nper (dataset x mine algorithm) summary of per-trial median deltas")
-    print(f"(percentile bootstrap, n_resamples={args.n_resamples}, seed={args.bootstrap_seed}, "
-          f"resampling unit = trial; no decision yet on Q1/Q3 vs bootstrap CI for the final table)")
+    print(f"(percentile bootstrap, n_resamples={args.n_resamples}, seed={args.bootstrap_seed})")
     group_summary_df = build_rq2_group_summary(per_trial_df, n_resamples=args.n_resamples, seed=args.bootstrap_seed)
     print_rq2_group_summary(group_summary_df)
 

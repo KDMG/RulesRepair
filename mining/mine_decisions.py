@@ -76,7 +76,7 @@ def main():
 
     trees = mine_decisions(args.pnml, args.xes, args.max_depth, args.min_samples_leaf, args.min_fitness)
     for place_name, (tree, f1, onehot_map, columns) in trees.items():
-        print(place_name, "f1_macro =", f1)
+        print(place_name)
         print_tree(tree, onehot_map, 1)
 
     if args.save:

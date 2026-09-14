@@ -39,8 +39,8 @@ def _node_pool(root, kind):
     raise ValueError(f"unknown node kind: {kind}")
 
 
-def _accuracy(root, X, y):
-    preds = [root.predict(row) for row in X.to_numpy()]
+def _accuracy(root, X_np, y):
+    preds = [root.predict(row) for row in X_np]
     return float(np.mean([p == t for p, t in zip(preds, y)]))
 
 
@@ -127,14 +127,18 @@ def generate_mutants(root, X_train, columns, classes, X_eval, y_eval,
                       regrow_split_prob=DEFAULT_REGROW_SPLIT_PROB,
                       max_alternatives_per_node=None):
     from mutations.tree_mutations import prepare_thresholds_pool
-    acc_orig = _accuracy(root, X_eval, y_eval)
+    # Converted once here instead of inside _accuracy(): X_eval never changes across
+    # the many candidate evaluations below, only the tree does, and re-running
+    # X_eval.to_numpy() on every candidate was both slow and, since X_eval mixes
+    # bool/int/float columns, produced a bloated dtype=object array (not float64)
+    # -- a major cost on decision points with many one-hot columns.
+    X_eval_np = np.asarray(X_eval, dtype=np.float64)
+    acc_orig = _accuracy(root, X_eval_np, y_eval)
     if len(set(classes)) <= 1:
         only_class = classes[0] if classes else None
         print(
-            f"Skipping mutant generation: only one class ({only_class!r}) present in the "
-            f"adapt+test data -- T_old's accuracy is already {acc_orig:.3f} by construction and no "
-            f"operator (including regrow) can ever degrade it, since every possible leaf can only "
-            f"predict this same class. Returning zero mutants for all operators without attempting any.",
+            f"Skipping mutant generation: only one class ({only_class!r}) present, "
+            f"T_old's accuracy is already {acc_orig:.3f}. Returning zero mutants.",
             flush=True,
         )
         results = {op: [] for op in OPERATOR_NODE_KIND}
@@ -181,7 +185,7 @@ def generate_mutants(root, X_train, columns, classes, X_eval, y_eval,
                 candidate_root = copy.deepcopy(root)
                 candidate_node = find_node_by_id(candidate_root, node_id)
                 apply_fn(candidate_node)
-                acc_after = _accuracy(candidate_root, X_eval, y_eval)
+                acc_after = _accuracy(candidate_root, X_eval_np, y_eval)
                 degradation = acc_orig - acc_after
                 if degradation >= degradation_threshold:
                     accepted.append({

@@ -36,12 +36,11 @@ def save_pareto_trees(normative_model_path, dp, manifest_path, pareto_csv, out_p
     pkl_max_depth = dp_entry.get("max_depth")
     pkl_min_samples_leaf = dp_entry.get("min_samples_leaf")
     if pkl_max_depth is not None and pkl_max_depth != max_depth:
-        print(f"Warning: T_old for '{dp}' was mined with max_depth={pkl_max_depth}, but this run uses "
-              f"max_depth={max_depth} -- pass max_depth={pkl_max_depth} to stay consistent with T_old.")
+        print(f"Warning: T_old for '{dp}' was mined with max_depth={pkl_max_depth}, "
+              f"but this run uses max_depth={max_depth}.")
     if pkl_min_samples_leaf is not None and pkl_min_samples_leaf != SKLEARN_GROW_FUNC_MIN_SAMPLES_LEAF:
-        print(f"Warning: T_old for '{dp}' was mined with min_samples_leaf={pkl_min_samples_leaf}, but "
-              f"keep_remine_prune_alg.sklearn_grow_func hardcodes min_samples_leaf={SKLEARN_GROW_FUNC_MIN_SAMPLES_LEAF} "
-              f"-- not consistent with T_old.")
+        print(f"Warning: T_old for '{dp}' was mined with min_samples_leaf={pkl_min_samples_leaf}, "
+              f"but this run uses min_samples_leaf={SKLEARN_GROW_FUNC_MIN_SAMPLES_LEAF}.")
 
     pareto_df = pd.read_csv(pareto_csv)
     if "is_pareto" not in pareto_df.columns:

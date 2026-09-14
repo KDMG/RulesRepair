@@ -14,6 +14,10 @@ To run our application you need to have installed:
 
 * [OpenJDK 8 or later](https://adoptium.net/) optional, only for the Weka C4.5/REPTree
 
+## Datasets
+
+Event logs for the 6 datasets used in the paper (`sepsis`, `production`, `hospital_billing`, `road_traffic`, `prepaid_travel_costs`, `international_declarations`) ship with the repo. If one is missing on your machine, `run_pipeline.py --dataset <name>` prints where to download it and where to place it. For any other event log, search [4TU.ResearchData](https://data.4tu.nl/search?q=event+log).
+
 ## Reproduce results
 
 To run our program copy and paste the following command in your terminal:

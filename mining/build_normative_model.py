@@ -105,7 +105,7 @@ def main():
                 "max_depth": args.max_depth,
                 "min_samples_leaf": args.min_samples_leaf,
             }
-            trivial_flag = "  (single class -- trivial guard, not a useful drift-injection candidate)" if n_classes < 2 else ""
+            trivial_flag = "  (single class, trivial guard)" if n_classes < 2 else ""
             summary_rows.append(
                 (
                     place_name,
@@ -117,7 +117,7 @@ def main():
                 )
             )
             if not args.quiet:
-                print(f"\n{place_name} (D_initial: {n_initial} rows, f1_train={f1:.3f}){trivial_flag}")
+                print(f"\n{place_name} (D_initial: {n_initial} rows){trivial_flag}")
                 print_tree(tree, onehot_map, depth=1)
         else:
             summary_rows.append(
@@ -139,7 +139,6 @@ def main():
         f"{'n_raw':<10}"
         f"{'n_encoded':<12}"
         f"{'n_classes':<12}"
-        f"{'f1_train':<10}"
     )
 
     for (
@@ -150,22 +149,18 @@ def main():
             n_classes,
             f1,
     ) in summary_rows:
-        f1_str = f"{f1:.3f}" if f1 is not None else "--"
-
         print(
             f"{place_name:<8}"
             f"{n_initial:<12}"
             f"{n_raw_features:<10}"
             f"{n_encoded_features:<12}"
             f"{n_classes:<12}"
-            f"{f1_str:<10}"
         )
 
     n_built = len(model)
     n_trivial = sum(1 for v in model.values() if v["n_classes"] < 2)
     print(f"\n{n_built}/{len(csv_files)} decision points have a normative model tree "
-          f"({n_trivial} of those are single-class/trivial guards -- not useful drift-injection "
-          f"candidates for Scenario 1/2, but still valid, correct parts of the normative model)")
+          f"({n_trivial} single-class trivial guards)")
 
     if args.save:
         with open(args.save, "wb") as f:

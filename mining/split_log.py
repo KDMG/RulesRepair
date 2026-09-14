@@ -173,7 +173,7 @@ def main():
         str(output_directory / f"{dataset_name}_test.xes")
     )
 
-    print(f"Log originale: {len(sorted_log)}")
+    print(f"Original log: {len(sorted_log)}")
     print(f"Normative: {len(log_normative)} -> {output_directory / f'{dataset_name}_normative.xes'}")
     print(f"Train: {len(log_train)} -> {output_directory / f'{dataset_name}_train.xes'}")
     print(f"Test: {len(log_test)} -> {output_directory / f'{dataset_name}_test.xes'}")

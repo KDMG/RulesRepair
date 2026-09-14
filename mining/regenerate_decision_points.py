@@ -101,18 +101,14 @@ def main():
     fm = fix_final_marking(net, fm)
     trans_to_dp = find_decision_points(net)
     all_places = distinct_dp_places(trans_to_dp)
-    print(f"Petri net: {len(all_places)} distinct decision-point place(s) found "
-          f"(across {len(trans_to_dp)} branching transition(s), a single place with "
-          f"3 outgoing arcs counts as 1 place but 3 transitions here, so these two "
-          f"numbers are not expected to match).")
+    print(f"Petri net: {len(all_places)} decision points, {len(trans_to_dp)} branching transitions")
 
     log = pm4py.read_xes(args.xes, return_legacy_log_object=True)
     print(f"log: {len(log)} traces (unsorted)", flush=True)
     log = sort_log_chronologically(log)
     print("sorted traces chronologically by first-event timestamp", flush=True)
 
-    print(f"Aligning {len(log)} trace(s) against the Petri net (this is the slow step, "
-          f"progress below, roughly every 1%)...", flush=True)
+    print(f"Aligning {len(log)} traces against the Petri net", flush=True)
     rows = build_instances_with_metadata(net, im, fm, log, trans_to_dp, min_fitness=args.min_fitness)
 
     out_dir = Path(args.out_dir)
@@ -140,23 +136,16 @@ def main():
     written_places = {p for p, _, _, _, _ in summary}
     missing_places = sorted(all_places - written_places)
     if missing_places:
-        print(f"\n{len(missing_places)} decision-point place(s) found in the net but with zero aligned "
-              f"rows in this log/split (no dp_<place>.csv written for these, either this place is never "
-              f"actually reached by any trace in --xes, or every trace that would have reached it fell "
-              f"below --min-fitness={args.min_fitness} and got skipped entirely): {missing_places}")
+        print(f"\n{len(missing_places)} decision points had zero rows, no CSV written: {missing_places}")
 
     n_usable = sum(1 for *_, usable in summary if usable)
-    print(f"\n{n_usable}/{len(summary)} written decision point(s) are 'usable' (>=1 feature column "
-          f"and >=2 distinct branch values), the rest have a single feature-less or single-branch "
-          f"CSV, still written to disk but not a useful drift-injection/repair candidate on their own.")
+    print(f"\n{n_usable}/{len(summary)} decision points are usable (at least 1 feature, at least 2 branches)")
 
     row_counts = [n_rows for _, n_rows, _, _, _ in summary]
     if row_counts:
         mean_rows = statistics.mean(row_counts)
         std_rows = statistics.pstdev(row_counts)
-        print(f"\nDecision points: {len(summary)}, observation instances per decision point: "
-              f"mean={mean_rows:.1f}, std={std_rows:.1f} (n={len(row_counts)} decision points, "
-              f"rows column above; population std)")
+        print(f"\nDecision points: {len(summary)}, mean rows: {mean_rows:.1f}, std: {std_rows:.1f}")
 
 
 if __name__ == "__main__":
