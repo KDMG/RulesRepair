@@ -32,17 +32,17 @@ def main(argv=None):
 
     seed_list = [s.strip() for s in args.seeds.split(",") if s.strip()]
 
-    print(f"Running {len(seed_list)} seed(s) in sequence: {' '.join(seed_list)}")
+    print(f"Running {len(seed_list)} seed(s) in sequence: {' '.join(seed_list)}", flush=True)
     print(f"Output in {out_base}/seed_<N>/<dp>/{{baseline,mutated}}/ "
-          f"(baseline computed only for the first seed, then copied)")
-    print(f"CART/J48/etc. fit cache (Scenario 3): {tree_cache_dir}")
+          f"(baseline computed only for the first seed, then copied)", flush=True)
+    print(f"CART/J48/etc. fit cache (Scenario 3): {tree_cache_dir}", flush=True)
 
     first_seed = seed_list[0]
 
     for seed in seed_list:
         seed_out = out_base / f"seed_{seed}"
-        print()
-        print(f"seed={seed} -> {seed_out}")
+        print(flush=True)
+        print(f"seed={seed} -> {seed_out}", flush=True)
 
         cmd = [
             sys.executable, str(REPO_ROOT / "run_repair_all.py"),
@@ -71,10 +71,10 @@ def main(argv=None):
                     if dst.exists():
                         shutil.rmtree(dst)
                     shutil.copytree(src, dst)
-            print(f"baseline copied from seed_{first_seed} to seed_{seed} for every dp")
+            print(f"baseline copied from seed_{first_seed} to seed_{seed} for every dp", flush=True)
 
-    print()
-    print(f"All seeds completed. Output in {out_base}/seed_<N>/<dp>/{{baseline,mutated}}/")
+    print(flush=True)
+    print(f"All seeds completed. Output in {out_base}/seed_<N>/<dp>/{{baseline,mutated}}/", flush=True)
     return 0
 
 

@@ -39,7 +39,7 @@ def run_one(dp_csv, args, out_base, log_suffix, fixed_args, extra_flags):
     if dp.startswith("dp_"):
         dp = dp[len("dp_"):]
     log_path = out_base / f"{dp}{log_suffix}.log"
-    print(f"{dp}: start")
+    print(f"{dp}: start", flush=True)
 
     cmd = [
         sys.executable, "-m", "repair.run_repair",
@@ -66,11 +66,11 @@ def run_one(dp_csv, args, out_base, log_suffix, fixed_args, extra_flags):
                     skipped = True
                     break
         if skipped:
-            print(f"{dp}: skipped (too little data, see {log_path})")
+            print(f"{dp}: skipped (too little data, see {log_path})", flush=True)
         else:
-            print(f"{dp}: done")
+            print(f"{dp}: done", flush=True)
     else:
-        print(f"FAILED: {dp} (see {log_path})")
+        print(f"FAILED: {dp} (see {log_path})", flush=True)
 
 
 def main(argv=None):
@@ -91,10 +91,10 @@ def main(argv=None):
 
     dp_files = sorted(dp_dir.glob("dp_*.csv"))
     if not dp_files:
-        print(f"No dp_*.csv files found in {dp_dir}.")
+        print(f"No dp_*.csv files found in {dp_dir}.", flush=True)
         return 1
 
-    print(f"Parallelism: up to {args.jobs} decision point(s) at a time.")
+    print(f"Parallelism: up to {args.jobs} decision point(s) at a time.", flush=True)
 
     with ThreadPoolExecutor(max_workers=max(1, args.jobs)) as pool:
         futures = [
@@ -104,7 +104,7 @@ def main(argv=None):
         for future in as_completed(futures):
             future.result()  # re-raise any unexpected exception
 
-    print(f"All decision points completed. Output in {out_base}/<dp>/{{baseline,mutated}}/")
+    print(f"All decision points completed. Output in {out_base}/<dp>/{{baseline,mutated}}/", flush=True)
     return 0
 
 

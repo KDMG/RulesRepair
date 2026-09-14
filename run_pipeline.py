@@ -36,7 +36,7 @@ REPO_ROOT = Path(__file__).resolve().parent
 
 
 def run_step(args, cwd, env):
-    print(f"  $ {' '.join(str(a) for a in args)}")
+    print(f"  $ {' '.join(str(a) for a in args)}", flush=True)
     subprocess.run(args, cwd=cwd, env=env, check=True)
 
 
@@ -63,14 +63,14 @@ def main(argv=None):
 
     info = DATASET_INFO.get(args.dataset)
     if info is None:
-        print(f"ERROR: unknown dataset '{args.dataset}'. Known datasets: {', '.join(DATASET_INFO)}")
-        print(f"For any other event log, search 4TU.ResearchData: {TUE_SEARCH_URL}")
+        print(f"ERROR: unknown dataset '{args.dataset}'. Known datasets: {', '.join(DATASET_INFO)}", flush=True)
+        print(f"For any other event log, search 4TU.ResearchData: {TUE_SEARCH_URL}", flush=True)
         return 1
 
     raw_xes = info["path"]
     if not (REPO_ROOT / raw_xes).exists():
-        print(f"ERROR: '{args.dataset}' event log not found at {raw_xes}")
-        print(f"Download it from {info['url']} and place it there.")
+        print(f"ERROR: '{args.dataset}' event log not found at {raw_xes}", flush=True)
+        print(f"Download it from {info['url']} and place it there.", flush=True)
         return 1
 
     dataset = args.dataset
@@ -85,9 +85,9 @@ def main(argv=None):
     env = dict(os.environ)
     env["PYTHONPATH"] = str(REPO_ROOT)
 
-    print(f"step 1/5 {dataset}: split_log")
+    print(f"step 1/5 {dataset}: split_log", flush=True)
     if args.skip_split:
-        print("Skipped (--skip-split).")
+        print("Skipped (--skip-split).", flush=True)
     else:
         run_step(
             [sys.executable, "-m", "mining.split_log",
@@ -98,18 +98,18 @@ def main(argv=None):
             REPO_ROOT, env,
         )
 
-    print()
-    print(f"step 2/5 {dataset}: mining the normative Petri net (pm4py, Inductive Miner infrequent)")
+    print(flush=True)
+    print(f"step 2/5 {dataset}: mining the normative Petri net (pm4py, Inductive Miner infrequent)", flush=True)
     normative_xes = cut_dir / f"{dataset}_normative.xes"
     if args.skip_mine_pn:
-        print("Skipped (--skip-mine-pn).")
+        print("Skipped (--skip-mine-pn).", flush=True)
     elif pnml.exists():
         print(f"{pnml} already exists, not remined (delete the file to force "
-              f"a new mining, or pass --skip-mine-pn to silence this check).")
+              f"a new mining, or pass --skip-mine-pn to silence this check).", flush=True)
     else:
         if not normative_xes.exists():
             print(f"ERROR: {normative_xes} not found, step 1 is required first "
-                  f"(don't pass --skip-split on the first run).")
+                  f"(don't pass --skip-split on the first run).", flush=True)
             return 1
         run_step(
             [sys.executable, "-m", "mining.build_pn_normative_pm4py",
@@ -121,13 +121,13 @@ def main(argv=None):
 
     if not pnml.exists():
         print(f"ERROR: {pnml} still not found after step 2, check "
-              f"build_pn_normative_pm4py.py's output above.")
+              f"build_pn_normative_pm4py.py's output above.", flush=True)
         return 1
 
-    print()
-    print(f"step 3/5 {dataset}: rebuilding decision points (normative + train)")
+    print(flush=True)
+    print(f"step 3/5 {dataset}: rebuilding decision points (normative + train)", flush=True)
     if args.skip_dp:
-        print("Skipped (--skip-dp).")
+        print("Skipped (--skip-dp).", flush=True)
     else:
         run_step(
             [sys.executable, "-m", "mining.regenerate_decision_points",
@@ -146,10 +146,10 @@ def main(argv=None):
             REPO_ROOT, env,
         )
 
-    print()
-    print(f"step 4/5 {dataset}: rebuilding the normative model")
+    print(flush=True)
+    print(f"step 4/5 {dataset}: rebuilding the normative model", flush=True)
     if args.skip_normative_model:
-        print("Skipped (--skip-normative-model).")
+        print("Skipped (--skip-normative-model).", flush=True)
     else:
         run_step(
             [sys.executable, "-m", "mining.build_normative_model",
@@ -161,10 +161,10 @@ def main(argv=None):
             REPO_ROOT, env,
         )
 
-    print()
-    print(f"step 5/5 {dataset}: running repair (baseline + mutated) on every dp, seed(s): {args.seeds}")
+    print(flush=True)
+    print(f"step 5/5 {dataset}: running repair (baseline + mutated) on every dp, seed(s): {args.seeds}", flush=True)
     if args.skip_repair:
-        print("Skipped (--skip-repair).")
+        print("Skipped (--skip-repair).", flush=True)
     else:
         run_step(
             [sys.executable, str(REPO_ROOT / "run_repair_all_seeds.py"),
@@ -176,8 +176,8 @@ def main(argv=None):
             REPO_ROOT, env,
         )
 
-    print()
-    print(f"Pipeline for {dataset} completed. Output in {out_base}/seed_<N>/<dp>/{{baseline,mutated}}/")
+    print(flush=True)
+    print(f"Pipeline for {dataset} completed. Output in {out_base}/seed_<N>/<dp>/{{baseline,mutated}}/", flush=True)
     return 0
 
 
