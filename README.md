@@ -42,7 +42,11 @@ Replace `sepsis` with the desired dataset name to reproduce the experiments for 
 
 ### Quantitative evaluation
 
-**Computational time:** every row of `results.csv` stores the per-trial training time in the `*_train_time_sec` columns; aggregate them directly with pandas, e.g. `df.groupby("mutation_type")["repair_train_time_sec"].mean()`.
+**Computational time:**
+```bash
+python -m analysis.core.computational_time experiments/<dataset>/repair/seed_*/*/mutated/results.csv
+```
+Prints and saves, under `evaluation/quantitative/timing/`, the mean/median/std training time per algorithm (RulesRepair and every baseline), broken down overall, by mutation type, and by decision point.
 
 **RQ1 (dominance over the baselines):**
 ```bash
