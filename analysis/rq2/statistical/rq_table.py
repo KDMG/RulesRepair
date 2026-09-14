@@ -439,87 +439,40 @@ def unified_results_to_latex_by_dataset(df, alpha=0.05,
 def main_rq_table(argv=None):
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument(
-        "paths", nargs="+",
-        help="Default mode: pareto_per_trial.csv paths for ONE dataset (glob-expanded by your shell, "
-             "one or more decision points x seeds -- same seed_<N> contract as igd_statistical_comparison.py "
-             "/ attainment_field.py). With --combine: previously-written rq_unified_<dataset>.csv summary "
-             "files (one or more datasets) to merge into a single cross-dataset table instead.",
+        "paths", nargs="+"
     )
     parser.add_argument(
-        "--dataset", default=None,
-        help="Dataset label (e.g. sepsis, hospital_billing, road_traffic) -- required in default mode, "
-             "ignored with --combine (each summary CSV already carries its own dataset column).",
+        "--dataset", default=None
     )
     parser.add_argument(
-        "--combine", action="store_true",
-        help="Treat `paths` as already-computed rq_unified_<dataset>.csv summary files and render them "
-             "together into one LaTeX table, instead of recomputing RQ1/RQ2 from raw "
-             "pareto_per_trial.csv files.",
+        "--combine", action="store_true"
     )
     parser.add_argument("--max-depth", type=int, default=DEFAULT_MAX_DEPTH)
     parser.add_argument("--nodes-min", type=int, default=DEFAULT_NODES_MIN)
     parser.add_argument("--tol", type=float, default=DEFAULT_TOL)
     parser.add_argument("--alpha", type=float, default=0.05, help="Significance threshold for the RQ1/RQ2 'winner' column (applied to the Holm-adjusted p-value, same as igd_statistical_comparison.py).")
     parser.add_argument(
-        "--sd-zero-tol", type=float, default=DEFAULT_TOL,
-        help="Threshold below which the paired differences' standard deviation is treated as numerically "
-             "zero for Cohen's d_z's cohens_dz_status classification (default: DEFAULT_TOL, this codebase's "
-             "existing 1e-9 'numerically zero' constant -- see igd_statistical_comparison."
-             "cohens_d_z_diagnostics()'s docstring for the empirical justification). Does not affect the "
-             "raw cohens_d_z value, or Wilcoxon/Holm/rank-biserial/Hodges-Lehmann.",
+        "--sd-zero-tol", type=float, default=DEFAULT_TOL
     )
     parser.add_argument(
-        "--baseline-acc-col", default="acc_cart_test",
-        help="Raw accuracy column for the baseline (default acc_cart_test -- CART). This CLI computes "
-             "against ONE baseline per invocation -- set together with --baseline-nodes-col/"
-             "--baseline-jaccard-col/--baseline-label to point at a different baseline (e.g. J48). To "
-             "get multiple baselines side by side in one table, run this script once per baseline "
-             "(different --out-dir each time) then combine the resulting rq_unified_<dataset>.csv files "
-             "with --combine, OR call build_unified_results_table(..., baselines=[...]) directly from "
-             "Python with several baseline dicts at once.",
+        "--baseline-acc-col", default="acc_cart_test"
     )
     parser.add_argument("--baseline-nodes-col", default="cart_total_nodes")
     parser.add_argument("--baseline-jaccard-col", default="sim_old_cart_jaccard")
     parser.add_argument(
-        "--baseline-label", default="CART",
-        help="Human-readable name for the baseline, shown in the new 'Baseline' column and in the "
-             "'Winner' column when the baseline wins (default CART) -- NOT inferred from "
-             "--baseline-*-col, must be set explicitly when those are changed.",
+        "--baseline-label", default="CART"
     )
     parser.add_argument(
-        "--by-mutation-type", action="store_true", default=True,
-        help="Also compute one view per canonical mutation type, in addition to overall (default: on).",
+        "--by-mutation-type", action="store_true", default=True
     )
     parser.add_argument(
-        "--trial-level", action="store_true",
-        help="SUPPLEMENTARY, NON-PRIMARY table (2026, explicit user request, informed of the statistical "
-             "caveat): compute RQ1/RQ2 by pooling every individual trial directly "
-             "(build_unified_results_table_trial_level()), with NO per-seed median aggregation -- instead "
-             "of this pipeline's documented PRIMARY methodology (seed as the statistical unit of "
-             "replication, see igd_statistical_comparison.py's own module docstring). Trials within the "
-             "same seed are NOT independent observations -- see igd_statistical_comparison."
-             "decision_point_igd_test_trial_level()'s docstring for the full caveat. Writes "
-             "rq_unified_trial_level_<dataset>.csv and rq_unified_trial_level_results.tex instead of "
-             "overwriting the seed-level ones (same one-thing-per-invocation convention as "
-             "--baseline-label: run separately, never combined into the primary output). In --combine "
-             "mode this flag only changes the output filename/caption -- point `paths` at the trial-level "
-             "CSVs yourself.",
+        "--trial-level", action="store_true"
     )
     parser.add_argument(
-        "--by-dataset", action="store_true",
-        help="2026 addition, explicit user request (\"I'd like a single table with one row per "
-             "dataset\"). SUPPLEMENTARY, requires --trial-level in default (non --combine) mode -- pools "
-             "every decision point of --dataset into ONE row per baseline instead of one row per decision "
-             "point (build_unified_results_table_trial_level_by_dataset()). In --combine mode, only changes "
-             "which renderer is used (unified_results_to_latex_by_dataset() instead of "
-             "unified_results_to_latex()) -- point `paths` at already-computed "
-             "rq_unified_trial_level_by_dataset_<dataset>.csv files (e.g. written by "
-             "run_multi_baseline_rq_table.py --by-dataset on each server), same as any other --combine call.",
+        "--by-dataset", action="store_true"
     )
     parser.add_argument(
-        "--out-dir", default=None,
-        help="Directory to write outputs into (created if missing). Default: "
-             "quantitative_evaluation/rq2/rq_table/.",
+        "--out-dir", default=None
     )
     args = parser.parse_args(argv)
 

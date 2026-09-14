@@ -67,60 +67,25 @@ def main_multi_baseline_table(argv=None):
     parser.add_argument("--nodes-min", type=int, default=DEFAULT_NODES_MIN)
     parser.add_argument("--tol", type=float, default=DEFAULT_TOL)
     parser.add_argument(
-        "--alpha", type=float, default=0.05,
-        help="Significance threshold for the RQ1/RQ2 'winner' column (applied to the Holm-adjusted "
-             "p-value, same as igd_statistical_comparison.py).",
+        "--alpha", type=float, default=0.05
     )
     parser.add_argument(
-        "--sd-zero-tol", type=float, default=DEFAULT_TOL,
-        help="Threshold below which the paired differences' standard deviation is treated as "
-             "numerically zero for Cohen's d_z's cohens_dz_status classification (default: DEFAULT_TOL, "
-             "this codebase's existing 1e-9 'numerically zero' constant).",
+        "--sd-zero-tol", type=float, default=DEFAULT_TOL
     )
     parser.add_argument(
-        "--by-mutation-type", action="store_true", default=True,
-        help="Also compute one view per canonical mutation type, in addition to overall (default: on).",
+        "--by-mutation-type", action="store_true", default=True
     )
     parser.add_argument(
-        "--out-dir", default=None,
-        help="Directory to write outputs into (created if missing). Default: "
-             "quantitative_evaluation/rq2/multi_baseline_table/.",
+        "--out-dir", default=None
     )
     parser.add_argument(
-        "--trial-level", action="store_true",
-        help="2026 addition, explicit user request. SUPPLEMENTARY ONLY -- pools every trial from every "
-             "seed with NO per-seed aggregation, instead of this pipeline's primary per-seed-median "
-             "methodology (analysis.igd_statistical_comparison.decision_point_igd_test_trial_level()). "
-             "Writes rq_unified_trial_level_<dataset>.csv/.tex instead of rq_unified_<dataset>.csv/.tex "
-             "so it never collides with the primary output. CAVEAT: trials within a seed are not "
-             "independent (same T_old, same adapt/test split, same mutation-sampling random stream) -- "
-             "the seed-level table (no --trial-level) remains the PRIMARY, statistically valid result.",
+        "--trial-level", action="store_true"
     )
     parser.add_argument(
-        "--by-dataset", action="store_true",
-        help="2026 addition, explicit user request (\"I'd like a single table with one row per "
-             "dataset\"). SUPPLEMENTARY ONLY, requires --trial-level -- pools every decision point of "
-             "--dataset into ONE row per baseline (not one row per decision point): every trial from every "
-             "decision point x every seed is pooled into a single Wilcoxon/Hodges-Lehmann test per "
-             "(view, baseline). Writes rq_unified_trial_level_by_dataset_<dataset>.csv/.tex instead of the "
-             "usual rq_unified_trial_level_<dataset>.csv/.tex. CAVEAT (on top of --trial-level's own "
-             "seed-independence caveat): different decision points are different repair problems (their "
-             "own T_old, their own feature space) -- pooling their trials together treats them as "
-             "exchangeable observations of the same effect, a real methodological simplification, not an "
-             "oversight (see build_unified_results_table_trial_level_by_dataset()'s own docstring). The "
-             "per-decision-point trial-level table (--trial-level alone) and the primary per-decision-point "
-             "seed-level table (neither flag) remain available/authoritative.",
+        "--by-dataset", action="store_true"
     )
     parser.add_argument(
-        "--exclude-w-simp-grid-values", default=None,
-        help="2026 addition, explicit user request. SUPPLEMENTARY ONLY -- comma-separated w_simp "
-             "value(s) (e.g. '5.0' or '3.0,5.0') to drop from the input pareto_per_trial.csv rows "
-             "before recomputing the Pareto front / IGD+ (see _filter_out_w_simp_values() docstring "
-             "above). Writes rq_unified[_trial_level]_excl_w_simp<V>_<dataset>.csv/.tex -- an ADDITIONAL "
-             "table alongside the primary one, never replacing it. The primary table (no exclusion, "
-             "full w_simp/w_simi grid) stays authoritative -- explicit user decision not to cut the "
-             "Pareto front in the primary RQ1/RQ2 result, since the repair problem is genuinely "
-             "3-objective and removing grid points would misrepresent the trade-off it reports.",
+        "--exclude-w-simp-grid-values", default=None
     )
     args = parser.parse_args(argv)
 
@@ -164,23 +129,15 @@ def main_multi_baseline_table(argv=None):
     caption_parts = []
     if args.trial_level:
         caption_parts.append(
-            "SUPPLEMENTARY, TRIAL-LEVEL (no per-seed aggregation) -- trials within a seed are not "
-            "independent (same T\\_old, same adapt/test split, same mutation-sampling random stream)."
+            "trial-level"
         )
     if args.by_dataset:
         caption_parts.append(
-            "POOLED ACROSS DECISION POINTS -- one row per baseline for the WHOLE dataset, every decision "
-            "point's trials pooled into a single test per (view, baseline). Different decision points are "
-            "different repair problems (their own T_old, their own feature space); pooling treats their "
-            "trials as exchangeable observations of the same effect."
+            "pooled across d.p."
         )
     if excluded_w_simps:
         caption_parts.append(
-            f"SUPPLEMENTARY -- Pareto front/IGD+ recomputed EXCLUDING w_simp={excluded_w_simps} from the "
-            "grid. NOT the primary result: the primary table (full w_simp/w_simi grid) is authoritative -- "
-            "the repair problem is genuinely 3-objective (accuracy, simplicity, similarity), so removing "
-            "grid points would misrepresent the trade-off it reports. Shown here only to quantify how "
-            "much the excluded value(s) affect the comparison."
+            f"excluding w_simp={excluded_w_simps}"
         )
     caption = "RQ1+RQ2" + ((" -- " + " ".join(caption_parts)) if caption_parts else "")
     if caption_parts:

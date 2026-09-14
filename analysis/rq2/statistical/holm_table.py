@@ -12,11 +12,7 @@ HOLM_REQUIRED_COLUMNS = ["dataset", "view", "baseline", "rq12_not_applicable", "
 
 
 CAPTION = (
-    "RQ1+RQ2 -- SUPPLEMENTARY, TRIAL-LEVEL, POOLED ACROSS DECISION POINTS "
-    "(no per-seed aggregation, no per-decision-point split). Holm-Bonferroni "
-    "correction applied ACROSS the three pairwise comparisons (CART, C4.5, "
-    "REPTree, each vs RulesRepair) for the same (dataset, view) cell, results "
-    "still reported as three separate rows."
+    "rq2 trial level."
 )
 
 
@@ -95,15 +91,11 @@ def apply_cross_baseline_holm(df, alpha, report):
 def main_holm_table(argv=None):
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument(
-        "paths", nargs="+",
-        help="rq_unified_trial_level_by_dataset_<dataset>.csv paths (one or more, typically the six "
-             "datasets), as written by analysis/run_multi_baseline_rq_table.py --trial-level --by-dataset.",
+        "paths", nargs="+"
     )
     parser.add_argument("--alpha", type=float, default=0.05, help="Significance threshold for the '*' marker.")
     parser.add_argument(
-        "--out-dir", default=None,
-        help="Directory to write outputs into (created if missing). Default: "
-             "quantitative_evaluation/rq2/holm_table/.",
+        "--out-dir", default=None
     )
     args = parser.parse_args(argv)
 

@@ -15,66 +15,32 @@ from analysis.rq2.statistical.igd_core import (
 def main_igd_comparison(argv=None):
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument(
-        "csv_paths", nargs="+",
-        help="pareto_per_trial.csv paths, one or more decision points x seeds (glob-expanded by your "
-             "shell) -- each path must contain a 'seed_<N>' segment (see run_repair_all_seeds.py).",
+        "csv_paths", nargs="+"
     )
     parser.add_argument(
-        "--max-depth", type=int, default=DEFAULT_MAX_DEPTH,
-        help=f"Shared tree-depth constraint for RulesRepair/CART (default {DEFAULT_MAX_DEPTH}) -- used only to "
-             "derive the node-count normalization bound (nodes_bounds()).",
+        "--max-depth", type=int, default=DEFAULT_MAX_DEPTH
     )
     parser.add_argument("--nodes-min", type=int, default=DEFAULT_NODES_MIN)
     parser.add_argument("--tol", type=float, default=DEFAULT_TOL)
     parser.add_argument(
-        "--alpha", type=float, default=0.05,
-        help="Significance threshold for the 'winner' column (default 0.05, applied to the "
-             "Holm-adjusted p-value).",
+        "--alpha", type=float, default=0.05
     )
     parser.add_argument(
-        "--out-dir", type=str, default=None,
-        help="Write igd_by_seed_<dp>.csv (per decision point) and igd_summary.csv (one row per "
-             "decision point) into this directory (created if missing). Default: "
-             "quantitative_evaluation/rq2/igd_comparison/.",
+        "--out-dir", type=str, default=None
     )
     parser.add_argument(
-        "--by-mutation-type", action="store_true",
-        help="Also run the SAME IGD+/effect-size test (RQ1+RQ2, decision_point_igd_test()) separately "
-             "for each of the 7 canonical mutation types (analysis.mutation_types.MUTATION_TYPES), in "
-             "addition to the overall (all trials, any operator) result that always runs. A mutation "
-             "type with zero trials at a decision point is reported 'not applicable' (see "
-             "build_seed_level_tables_by_mutation_type()), never as a zero/undefined test result. With "
-             "--out-dir, also writes igd_by_seed_<dp>_<mutation_type>.csv per applicable type and a "
-             "single igd_summary_by_mutation_type.csv across all decision points/types.",
+        "--by-mutation-type", action="store_true"
     )
     parser.add_argument(
-        "--baseline-acc-col", type=str, default="acc_cart_test",
-        help="Raw accuracy column for the baseline (default acc_cart_test -- CART). Set together with "
-             "--baseline-nodes-col/--baseline-jaccard-col/--baseline-label to compare RulesRepair against a "
-             "different baseline (e.g. J48: acc_j48_test/j48_total_nodes/sim_old_j48_jaccard) that has "
-             "the required 3 columns in pareto_per_trial.csv -- see analysis/trial_pareto_analysis.py's "
-             "OTHER_BASELINE_VALUE_COLS for the exact column names each baseline carries.",
+        "--baseline-acc-col", type=str, default="acc_cart_test"
     )
     parser.add_argument("--baseline-nodes-col", type=str, default="cart_total_nodes")
     parser.add_argument("--baseline-jaccard-col", type=str, default="sim_old_cart_jaccard")
     parser.add_argument(
-        "--baseline-label", type=str, default="CART",
-        help="Human-readable name for the baseline, used in the printed 'comparison=RulesRepair vs <label>' line "
-             "and the 'winner' column -- NOT inferred from --baseline-*-col, must be set explicitly when "
-             "those are changed (default CART).",
+        "--baseline-label", type=str, default="CART"
     )
     parser.add_argument(
-        "--trial-level", action="store_true",
-        help="SUPPLEMENTARY, NON-PRIMARY analysis (2026, explicit user request, informed of the "
-             "statistical caveat below): run the exact same Wilcoxon/Hodges-Lehmann/Cohen's d_z test, "
-             "but pool EVERY INDIVIDUAL TRIAL across all seeds directly (build_trial_level_table()/ "
-             "decision_point_igd_test_trial_level()), with NO per-seed median aggregation at all -- "
-             "instead of this module's own documented PRIMARY methodology (seed as the statistical unit "
-             "of replication, decision_point_igd_test()). Trials within the same seed are NOT independent "
-             "observations -- this view is provided ONLY as an explicit, informed, exploratory supplement; "
-             "it is NOT a replacement for the default (seed-level) run and must be run as a SEPARATE "
-             "invocation (same one-thing-per-invocation convention as --baseline-label). All output "
-             "filenames get an igd_by_trial_/_trial_level suffix instead of overwriting the seed-level ones.",
+        "--trial-level", action="store_true"
     )
     args = parser.parse_args(argv)
 
