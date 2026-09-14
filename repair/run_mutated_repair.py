@@ -22,6 +22,7 @@ from mutations.mutation_sampling import (
     generate_mutants, print_mutation_summary,
     DEFAULT_P, DEFAULT_DEGRADATION_THRESHOLD,
     DEFAULT_MAX_REGROW_ATTEMPTS, DEFAULT_REGROW_MAX_DEPTH, DEFAULT_REGROW_SPLIT_PROB,
+    DEFAULT_MAX_ALTERNATIVES_PER_NODE,
 )
 from mutations.tree_mutations import root_to_leaf_paths
 from analysis.core.trial_pareto_analysis import run_trial_pareto_analysis
@@ -151,7 +152,8 @@ def run_mutated_repair(
     p=DEFAULT_P, degradation_threshold=DEFAULT_DEGRADATION_THRESHOLD, seed=0,
     n_thresholds=10, max_regrow_attempts=DEFAULT_MAX_REGROW_ATTEMPTS,
     regrow_max_depth=DEFAULT_REGROW_MAX_DEPTH, regrow_split_prob=DEFAULT_REGROW_SPLIT_PROB,
-    fixed=False, baseline_tree_cache_dir=None, max_alternatives_per_node=None,
+    fixed=False, baseline_tree_cache_dir=None,
+    max_alternatives_per_node=DEFAULT_MAX_ALTERNATIVES_PER_NODE,
 ):
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -574,16 +576,16 @@ def main():
     parser.add_argument("--regrow-max-depth", type=int, default=DEFAULT_REGROW_MAX_DEPTH)
     parser.add_argument("--regrow-split-prob", type=float, default=DEFAULT_REGROW_SPLIT_PROB)
     parser.add_argument(
-        "--max-alternatives-per-node", type=int, default=None,
-        help="2026 opt-in addition, default None = unchanged exhaustive behaviour. Caps how "
-             "many alternatives change_threshold/change_feature try per node before giving up "
-             "on it (a random subsample of the shuffled alternative list, not a biased "
-             "truncation). change_feature in particular can otherwise enumerate "
-             "(n_columns-1)*n_thresholds candidates per node, each requiring a tree deepcopy + "
-             "a full accuracy pass over D_adapt -- on datasets with many one-hot columns "
-             "and/or large D_adapt this can take hours per decision point. Does not affect "
-             "prune/change_label (already tiny, bounded by len(classes)), branch_swap (1 "
-             "alternative), or regrow (already capped by --max-regrow-attempts).",
+        "--max-alternatives-per-node", type=int, default=DEFAULT_MAX_ALTERNATIVES_PER_NODE,
+        help="2026 addition, default 100. Caps how many alternatives change_threshold/"
+             "change_feature try per node before giving up on it (a random subsample of the "
+             "shuffled alternative list, not a biased truncation). change_feature in particular "
+             "can otherwise enumerate (n_columns-1)*n_thresholds candidates per node, each "
+             "requiring a tree deepcopy and a full accuracy pass over D_adapt, which on datasets "
+             "with many one-hot columns and/or large D_adapt can take hours per decision point. "
+             "Pass a very large value (e.g. 999999) for unchanged exhaustive behaviour. "
+             "Does not affect prune/change_label (already tiny, bounded by len(classes)), "
+             "branch_swap (1 alternative), or regrow (already capped by --max-regrow-attempts).",
     )
     parser.add_argument(
         "--fixed", action=argparse.BooleanOptionalAction, default=False,

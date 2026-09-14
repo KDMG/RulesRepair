@@ -7,6 +7,7 @@ from repair.run_mutated_repair import (
     run_mutated_repair,
     DEFAULT_P, DEFAULT_DEGRADATION_THRESHOLD,
     DEFAULT_MAX_REGROW_ATTEMPTS, DEFAULT_REGROW_MAX_DEPTH, DEFAULT_REGROW_SPLIT_PROB,
+    DEFAULT_MAX_ALTERNATIVES_PER_NODE,
 )
 from repair.run_perturbation_experiment import split_adapt_test
 
@@ -26,7 +27,7 @@ def run_both(
     n_thresholds=10, max_regrow_attempts=DEFAULT_MAX_REGROW_ATTEMPTS,
     regrow_max_depth=DEFAULT_REGROW_MAX_DEPTH, regrow_split_prob=DEFAULT_REGROW_SPLIT_PROB,
     fixed=False, skip_baseline=False, baseline_tree_cache_dir=None,
-    max_alternatives_per_node=None,
+    max_alternatives_per_node=DEFAULT_MAX_ALTERNATIVES_PER_NODE,
 ):
     df_data = pd.read_csv(data_csv)
     preflight_adapt, preflight_test = split_adapt_test(df_data, target, adapt_fraction, split_method, split_seed)
@@ -116,12 +117,13 @@ def main():
     parser.add_argument("--regrow-max-depth", type=int, default=DEFAULT_REGROW_MAX_DEPTH)
     parser.add_argument("--regrow-split-prob", type=float, default=DEFAULT_REGROW_SPLIT_PROB)
     parser.add_argument(
-        "--max-alternatives-per-node", type=int, default=None,
-        help="Mutated repair only, 2026 opt-in addition, default None = unchanged exhaustive "
-             "behaviour. Caps how many alternatives change_threshold/change_feature try per "
-             "node (random subsample of the shuffled list) before giving up on it -- use this "
-             "if mutant generation is taking hours on a decision point with many one-hot "
-             "columns and/or large D_adapt. Forwarded as-is to run_mutated_repair.py.",
+        "--max-alternatives-per-node", type=int, default=DEFAULT_MAX_ALTERNATIVES_PER_NODE,
+        help="Mutated repair only, 2026 addition, default 100. Caps how many alternatives "
+             "change_threshold/change_feature try per node (random subsample of the shuffled "
+             "list) before giving up on it, useful if mutant generation is taking hours on a "
+             "decision point with many one-hot columns and/or large D_adapt. Pass a very large "
+             "value (e.g. 999999) for unchanged exhaustive behaviour. Forwarded as-is to "
+             "run_mutated_repair.py.",
     )
 
     parser.add_argument(

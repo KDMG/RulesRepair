@@ -15,6 +15,7 @@ DEFAULT_DEGRADATION_THRESHOLD = 0.20
 DEFAULT_MAX_REGROW_ATTEMPTS = 10
 DEFAULT_REGROW_MAX_DEPTH = 3
 DEFAULT_REGROW_SPLIT_PROB = 0.7
+DEFAULT_MAX_ALTERNATIVES_PER_NODE = 100
 
 OPERATOR_NODE_KIND = {
     "prune": "internal",
@@ -125,7 +126,7 @@ def generate_mutants(root, X_train, columns, classes, X_eval, y_eval,
                       max_regrow_attempts=DEFAULT_MAX_REGROW_ATTEMPTS,
                       regrow_max_depth=DEFAULT_REGROW_MAX_DEPTH,
                       regrow_split_prob=DEFAULT_REGROW_SPLIT_PROB,
-                      max_alternatives_per_node=None):
+                      max_alternatives_per_node=DEFAULT_MAX_ALTERNATIVES_PER_NODE):
     from mutations.tree_mutations import prepare_thresholds_pool
     # Converted once here instead of inside _accuracy(): X_eval never changes across
     # the many candidate evaluations below, only the tree does, and re-running
