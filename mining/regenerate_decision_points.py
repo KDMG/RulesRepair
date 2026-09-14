@@ -141,11 +141,12 @@ def main():
     n_usable = sum(1 for *_, usable in summary if usable)
     print(f"\n{n_usable}/{len(summary)} decision points are usable (at least 1 feature, at least 2 branches)")
 
-    row_counts = [n_rows for _, n_rows, _, _, _ in summary]
+    rows_by_place = {place_name: n_rows for place_name, n_rows, _, _, _ in summary}
+    row_counts = [rows_by_place.get(place_name, 0) for place_name in all_places]
     if row_counts:
         mean_rows = statistics.mean(row_counts)
         std_rows = statistics.pstdev(row_counts)
-        print(f"\nDecision points: {len(summary)}, mean rows: {mean_rows:.1f}, std: {std_rows:.1f}")
+        print(f"\nDecision points: {len(all_places)}, mean rows: {mean_rows:.1f}, std: {std_rows:.1f}")
 
 
 if __name__ == "__main__":
