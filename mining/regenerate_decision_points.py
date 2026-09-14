@@ -10,6 +10,14 @@ from pm4py.algo.conformance.alignments.petri_net import algorithm as align_alg
 
 from mining.extract_decision_points import fix_final_marking, encode_var, NON_DATA_KEYS
 from mining.mine_decisions import find_decision_points
+from repair.run_perturbation_experiment import split_adapt_test
+
+# Must match repair's own defaults (repair/run_repair.py, repair/run_baseline_repair.py)
+# so this preview reflects exactly what repair will actually train on.
+REPAIR_TARGET = "branch"
+REPAIR_ADAPT_FRACTION = 0.7
+REPAIR_SPLIT_METHOD = "case_chronological"
+REPAIR_SPLIT_SEED = 0
 
 NON_FEATURE_COLUMNS = {"case_id", "timestamp", "branch_index", "branch_label"}
 
@@ -95,6 +103,12 @@ def main():
     parser.add_argument("--xes", default="datasets/sepsis/sepsis.xes")
     parser.add_argument("--min-fitness", type=float, default=0)
     parser.add_argument("--out-dir", required=True)
+    parser.add_argument(
+        "--show-row-stats", action="store_true",
+        help="Print the final 'Decision points: N, mean rows, std' line. Off by default since "
+             "this script also runs on the normative split (used only to mine T_old, not for "
+             "repair) -- pass this only for the train split, the one repair actually uses.",
+    )
     args = parser.parse_args()
 
     net, im, fm = pm4py.read_pnml(args.pnml)
@@ -115,6 +129,7 @@ def main():
     out_dir.mkdir(parents=True, exist_ok=True)
 
     summary = []
+    adapt_rows_by_place = {}
     for place_name, recs in sorted(rows.items()):
         df = pd.DataFrame(recs)
         meta_cols = [c for c in ("case_id", "timestamp", "branch") if c in df.columns]
@@ -127,6 +142,12 @@ def main():
         path = out_dir / f"dp_{place_name}.csv"
         df.to_csv(path, index=False)
         summary.append((place_name, len(recs), n_features, dict(branch_dist), usable))
+
+        if args.show_row_stats:
+            df_adapt, _df_test = split_adapt_test(
+                df, REPAIR_TARGET, REPAIR_ADAPT_FRACTION, REPAIR_SPLIT_METHOD, REPAIR_SPLIT_SEED,
+            )
+            adapt_rows_by_place[place_name] = len(df_adapt)
 
     print(f"\nsummary: {len(summary)}/{len(all_places)} decision-point place(s) got at least 1 row")
     print(f"{'place':<10}{'rows':<8}{'n_features':<12}{'branches':<10}{'usable':<8}")
@@ -141,12 +162,15 @@ def main():
     n_usable = sum(1 for *_, usable in summary if usable)
     print(f"\n{n_usable}/{len(summary)} decision points are usable (at least 1 feature, at least 2 branches)")
 
-    rows_by_place = {place_name: n_rows for place_name, n_rows, _, _, _ in summary}
-    row_counts = [rows_by_place.get(place_name, 0) for place_name in all_places]
-    if row_counts:
-        mean_rows = statistics.mean(row_counts)
-        std_rows = statistics.pstdev(row_counts)
-        print(f"\nDecision points: {len(all_places)}, mean rows: {mean_rows:.1f}, std: {std_rows:.1f}")
+    if args.show_row_stats:
+        row_counts = [adapt_rows_by_place.get(place_name, 0) for place_name in all_places]
+        if row_counts:
+            mean_rows = statistics.mean(row_counts)
+            std_rows = statistics.pstdev(row_counts)
+            print(
+                f"\nD_adapt (the {REPAIR_ADAPT_FRACTION:.0%} of train repair actually fits on): "
+                f"{len(all_places)} decision points, mean rows: {mean_rows:.1f}, std: {std_rows:.1f}"
+            )
 
 
 if __name__ == "__main__":

@@ -149,7 +149,8 @@ def main(argv=None):
              "--pnml", str(pnml),
              "--xes", str(cut_dir / f"{dataset}_train.xes"),
              "--min-fitness", "0",
-             "--out-dir", str(train_dp_dir)],
+             "--out-dir", str(train_dp_dir),
+             "--show-row-stats"],
             REPO_ROOT, env,
         )
 
