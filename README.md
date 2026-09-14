@@ -29,6 +29,8 @@ source $(poetry env info --path)/bin/activate
 
 ## Reproducing the experiments
 
+For reproducing the experiments according to our experimental setup, first launch the repair algorithm for each dataset, then run the quantitative and qualitative evaluation.
+
 ### Repair for a single dataset
 To reproduce the experiments for a dataset, run:
 
