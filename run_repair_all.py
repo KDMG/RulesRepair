@@ -66,7 +66,7 @@ def run_one(dp_csv, args, out_base, log_suffix, fixed_args, extra_flags):
                     skipped = True
                     break
         if skipped:
-            print(f"{dp}: skipped (too little data, see {log_path})", flush=True)
+            print(f"{dp}: skipped (see {log_path})", flush=True)
         else:
             print(f"{dp}: done", flush=True)
     else:

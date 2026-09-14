@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
+import os
+import sys
+
+if os.environ.get("PYTHONHASHSEED") != "0":
+    os.execvpe(sys.executable, [sys.executable] + sys.argv, dict(os.environ, PYTHONHASHSEED="0"))
+
 import argparse
 import subprocess
-import sys
 from pathlib import Path
 
 DATASET_INFO = {
@@ -81,7 +86,6 @@ def main(argv=None):
     normative_model = REPO_ROOT / f"decision_points/{dataset}/normative_model.pkl"
     out_base = REPO_ROOT / f"experiments/{dataset}/repair"
 
-    import os
     env = dict(os.environ)
     env["PYTHONPATH"] = str(REPO_ROOT)
 

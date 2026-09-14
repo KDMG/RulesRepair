@@ -1,4 +1,5 @@
 import argparse
+import pickle
 
 import pandas as pd
 
@@ -38,6 +39,16 @@ def run_both(
             f"{'D_adapt' if len(preflight_adapt) == 0 else 'D_test'} "
             f"({len(preflight_adapt)} adapt / {len(preflight_test)} test rows). "
             f"Too little data, no results.csv written for it."
+        )
+        return None
+
+    with open(normative_model, "rb") as f:
+        available_dps = set(pickle.load(f).keys())
+    if dp not in available_dps:
+        print(
+            f"Skipping '{dp}': no tree for this decision point in {normative_model} "
+            f"(excluded during mining, no usable feature columns). "
+            f"No results.csv written for it."
         )
         return None
 
