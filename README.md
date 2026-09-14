@@ -6,7 +6,7 @@ Repairing decision rules in data-aware process models with Keep-Regrow.
 
 To run our application you need to have installed:
 
-* [Python 3.9 to 3.12](https://www.python.org/downloads/) (PySide6, one of the dependencies, doesn't support 3.8 or 3.13+ yet)
+* [Python 3.9 to 3.12](https://www.python.org/downloads/)
 
 * [Poetry](https://python-poetry.org/docs/#installation), to install the dependencies listed in `pyproject.toml`
 
