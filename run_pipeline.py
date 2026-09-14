@@ -26,7 +26,7 @@ DATASET_INFO = {
         "url": "https://doi.org/10.4121/uuid:5d2fe5e1-f91f-4a3b-ad9b-9e4126870165",
     },
     "international_declarations": {
-        "path": "datasets/international_declarations/InternationalDeclarations.xes_",
+        "path": "datasets/international_declarations/InternationalDeclarations.xes",
         "url": "https://doi.org/10.4121/uuid:2bbf8f6a-fc50-48eb-aa9e-c4ea5ef7e8c5",
     },
 }
