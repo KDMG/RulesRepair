@@ -13,7 +13,7 @@ authors = ["Scott Barnett"]
 packages = [{include = "keep_remine_prune"}]
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = ">=3.9,<3.13"
 river = "^0.14.0"
 scikit-learn = "^1.2.0"
 
@@ -62,7 +62,7 @@ pm4py = "^2.7"
 PySide6 = "^6.7"
 
 
-[tool.poetry.dev-dependencies]
+[tool.poetry.group.dev.dependencies]
 surround = "0.1.2"
 doit = "0.31.1"
 jupyter = "^1.0.0"

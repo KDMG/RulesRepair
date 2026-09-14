@@ -1,0 +1,9 @@
+dataset,mine_algorithm,mutation_type,n_trials_with_dominance,bootstrap_flagged_low_n,median_of_median_delta_accuracy,q1_of_median_delta_accuracy,q3_of_median_delta_accuracy,boot_ci95_lo_delta_accuracy,boot_ci95_hi_delta_accuracy,median_of_median_delta_similarity,q1_of_median_delta_similarity,q3_of_median_delta_similarity,boot_ci95_lo_delta_similarity,boot_ci95_hi_delta_similarity,median_of_median_delta_simplicity,q1_of_median_delta_simplicity,q3_of_median_delta_simplicity,boot_ci95_lo_delta_simplicity,boot_ci95_hi_delta_simplicity
+prepaid_travel_costs,CART,regrow_internal,22,False,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.06451612903225812,0.06451612903225801,0.06451612903225812,0.06451612903225806,0.06451612903225812
+prepaid_travel_costs,C4.5,regrow_internal,14,False,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.06451612903225812,0.06451612903225812,0.06451612903225812,0.06451612903225812,0.06451612903225812
+prepaid_travel_costs,REPTree,regrow_internal,17,False,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.06451612903225812,0.06451612903225801,0.06451612903225812,0.06451612903225801,0.06451612903225812
+prepaid_travel_costs,CART,change_feature,2,True,0.0,0.0,0.0,,,0.0,0.0,0.0,,,0.06451612903225812,0.06451612903225812,0.06451612903225812,,
+prepaid_travel_costs,C4.5,change_feature,2,True,0.0,0.0,0.0,,,0.0,0.0,0.0,,,0.06451612903225812,0.06451612903225812,0.06451612903225812,,
+prepaid_travel_costs,CART,regrow_leaf,18,False,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.12903225806451613,0.06451612903225812,0.17741935483870963,0.06451612903225812,0.16129032258064513
+prepaid_travel_costs,C4.5,regrow_leaf,19,False,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.12903225806451613,0.06451612903225812,0.19354838709677424,0.06451612903225812,0.19354838709677424
+prepaid_travel_costs,REPTree,regrow_leaf,16,False,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.12903225806451613,0.06451612903225812,0.19354838709677424,0.06451612903225812,0.19354838709677424

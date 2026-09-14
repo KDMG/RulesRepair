@@ -17,6 +17,15 @@ def prune_tree(node):
 
 
 def encode_records(records):
+    if not records:
+        # Same "nothing to build" signal as the zero-feature-columns case
+        # below. Happens when a decision point has no feature columns at
+        # all (only branch/identifier columns): dropping every column from
+        # an N-row DataFrame before converting to records collapses to an
+        # empty list (pandas .to_dict("records") quirk on a 0-column
+        # frame), losing the row count entirely, so this can't be caught
+        # by the X.shape[1] == 0 check below -- it never gets that far.
+        return None, None, {}, []
     df = pd.DataFrame(records)
     y = df["branch"]
     X = df.drop(columns=["branch"])
