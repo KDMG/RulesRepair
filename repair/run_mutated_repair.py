@@ -182,9 +182,9 @@ def run_mutated_repair(
     df_data = pd.read_csv(data_csv)
 
     df_adapt_raw, df_test_raw = split_adapt_test(df_data, target, adapt_fraction, split_method, split_seed)
-    adapt_out = out_dir / "shared_adapt.csv"
+    train_out = out_dir / "shared_train.csv"
     test_out = out_dir / "shared_test.csv"
-    df_adapt_raw.to_csv(adapt_out, index=False)
+    df_adapt_raw.to_csv(train_out, index=False)
     df_test_raw.to_csv(test_out, index=False)
 
     columns = extend_columns_for_regrow(df_adapt_raw, cat_cols, columns)
@@ -321,7 +321,7 @@ def run_mutated_repair(
                 "mutation_degradation": trial["mutation_degradation"],
                 "n_alternatives_tried": trial["n_alternatives_tried"],
                 "mutant_n_nodes": count_nodes(mutant_tree),
-                "adapt_file": str(adapt_out),
+                "train_file": str(train_out),
                 "test_file": str(test_out),
                 "mutant_tree_file": str(mutant_tree_file),
             }
@@ -541,9 +541,9 @@ def run_mutated_repair(
         print(f"Skipping Pareto analysis: '{dp}' had zero mutant trials, nothing to analyze.", flush=True)
         analysis_dir = None
     else:
-        print(f"Scenario 3: Pareto analysis (per trial + aggregated by config) -> {out_dir / 'analysis'}", flush=True)
+        print(f"Scenario 3: per-trial Pareto analysis -> {out_dir / 'analysis'}", flush=True)
         analysis_dir = run_trial_pareto_analysis(
-            csv_path=out_csv, out_dir=out_dir / "analysis",
+            csv_path=out_csv, out_dir=out_dir / "analysis", aggregate=False,
         )
 
     return manifest_path, out_csv, trees_pkl, analysis_dir

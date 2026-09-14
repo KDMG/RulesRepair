@@ -315,7 +315,7 @@ def run_repair(
 
     rows = []
     for trial_idx, trial in enumerate(trials, start=1):
-        df_adapt_raw = pd.read_csv(trial["adapt_file"])
+        df_adapt_raw = pd.read_csv(trial["train_file"])
         df_test_raw = pd.read_csv(trial["test_file"])
 
         columns_for_trial = extend_columns_for_regrow(df_adapt_raw, cat_cols, columns)

@@ -72,7 +72,36 @@ You can inspect the Pareto explorer by running
 ```bash
 python pareto_explorer/app.py
 ```
-you can find the files used to show the qualitative evaluation in the `evaluation/qualitative/` folder.
+On screen 1, open the three files in `evaluation/qualitative/`:
+
+* Petri net: `pn_normative_sepsis.pnml`
+* Model: `normative_model_sepsis_p42_change_feature_example.pkl`
+* Log: `sepsis_train.xes`
+
+then click decision point **p_42**. This exactly reproduces the paper's Figure 3
+example (Normative Acc 0.728/Simplicity 0.710, Repaired Acc 0.968/Simplicity
+0.710/Similarity 0.667, CART Acc 0.956/Simplicity 0.645/Similarity 0.000, all
+verified against `experiments/sepsis/repair/seed_3/p_42/mutated/results.csv`,
+trial `s3_change_feature_0`). The model file is the same as the plain
+`decision_points/sepsis/normative_model.pkl` except p_42's tree, whose root
+split was set to `DiagnosticArtAstrup_True <= 0.0` -- the specific
+`change_feature` mutation the paper's example starts from (Petri net mining
+isn't seed-pinned, so a fresh `run_pipeline.py` run can mine a different root
+split for the same decision-point name; this file freezes the one the figure
+needs). Regenerate it with:
+```bash
+python -c "
+import pickle, copy
+from mutations.tree_mutations import apply_change_feature
+with open('decision_points/sepsis/normative_model.pkl', 'rb') as f:
+    model = pickle.load(f)
+columns = model['p_42']['columns']
+pos = columns.index('DiagnosticArtAstrup_True')
+apply_change_feature(model['p_42']['tree'], pos, 0.0, columns)
+with open('evaluation/qualitative/normative_model_sepsis_p42_change_feature_example.pkl', 'wb') as f:
+    pickle.dump(model, f)
+"
+```
 
 ## Contact
 

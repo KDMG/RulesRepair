@@ -44,13 +44,13 @@ def run_experiment(data_csv, target, adapt_fraction, split_method, split_seed, o
         for trial in trials:
             df_adapt, df_test = split_adapt_test(df_data, target, adapt_fraction, split_method, split_seed)
 
-            adapt_out = out_dir / f"{trial['trial_id']}_adapt.csv"
+            train_out = out_dir / f"{trial['trial_id']}_train.csv"
             test_out = out_dir / f"{trial['trial_id']}_test.csv"
-            df_adapt.to_csv(adapt_out, index=False)
+            df_adapt.to_csv(train_out, index=False)
             df_test.to_csv(test_out, index=False)
 
             record = dict(trial)
-            record["adapt_file"] = str(adapt_out)
+            record["train_file"] = str(train_out)
             record["test_file"] = str(test_out)
             manifest.write(json.dumps(record) + "\n")
 

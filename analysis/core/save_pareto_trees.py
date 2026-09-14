@@ -68,7 +68,7 @@ def save_pareto_trees(normative_model_path, dp, manifest_path, pareto_csv, out_p
 
     for trial_id, group in pareto_df.groupby("trial_id", sort=False):
         trial = trials_by_id[trial_id]
-        df_adapt_raw = pd.read_csv(trial["adapt_file"])
+        df_adapt_raw = pd.read_csv(trial["train_file"])
         df_test_raw = pd.read_csv(trial["test_file"])
         columns_for_trial = extend_columns_for_regrow(df_adapt_raw, cat_cols, columns)
         X_adapt, y_adapt = load_xy(df_adapt_raw, cat_cols, columns_for_trial)

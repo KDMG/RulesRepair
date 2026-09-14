@@ -103,12 +103,13 @@ def aggregate_by_config(df, out_csv, w_simp_col="w_simp", w_simi_col="w_simi", t
 
 def run_trial_pareto_analysis(
     csv_path, out_dir,
-    f1_col="acc_new_test", nodes_col="total_nodes", sim_col="pct_reaudit_new",
+    f1_col="acc_new_test", nodes_col="total_nodes", sim_col="sim_old_new_jaccard",
     w_simp_col="w_simp", w_simi_col="w_simi", t_col="t",
-    cart_f1_col="acc_cart_test", cart_nodes_col="cart_total_nodes", cart_sim_col="pct_reaudit_cart",
+    cart_f1_col="acc_cart_test", cart_nodes_col="cart_total_nodes", cart_sim_col="sim_old_cart_jaccard",
     metric_header="Accuracy test",
-    reaudit_maximize=False,
-    reaudit_header="Reaudit %",
+    reaudit_maximize=True,
+    reaudit_header="Similarity",
+    aggregate=True,
 ):
     csv_path = Path(csv_path)
     out_dir = Path(out_dir)
@@ -126,6 +127,9 @@ def run_trial_pareto_analysis(
         w_simp_col=w_simp_col, w_simi_col=w_simi_col, t_col=t_col,
         reaudit_maximize=reaudit_maximize,
     )
+
+    if not aggregate:
+        return out_dir
 
     value_cols = [c for c in DEFAULT_VALUE_COLS if c in df.columns]
     aggregated_csv = aggregate_by_config(
@@ -157,17 +161,17 @@ def main():
     parser.add_argument("--out-dir", default=None, help="Output directory (default: <csv_dir>/trial_analysis)")
     parser.add_argument("--f1-col", default="acc_new_test", help="Primary metric column, plotted/optimized (default: acc_new_test, plain accuracy; pass f1_new_test for the old F1-macro behaviour and set --metric-label/--metric-header to match).")
     parser.add_argument("--nodes-col", default="total_nodes")
-    parser.add_argument("--sim-col", default="pct_reaudit_new", help="Third Pareto objective (default: pct_reaudit_new, structural node-by-node re-audit percentage against T_old -- minimized. Pass sim_old_new_labeled/sim_old_new/sim_old_new_jaccard together with --reaudit-maximize to use a similarity score instead, maximized).")
+    parser.add_argument("--sim-col", default="sim_old_new_jaccard", help="Third Pareto objective (default: sim_old_new_jaccard, maximized -- the same rule-set similarity to T_old used throughout RQ1/RQ2/the GUI. Pass pct_reaudit_new without --reaudit-maximize to use the structural re-audit percentage instead, minimized).")
     parser.add_argument("--w-simp-col", default="w_simp")
     parser.add_argument("--w-simi-col", default="w_simi")
     parser.add_argument("--t-col", default="t")
     parser.add_argument("--cart-f1-col", default="acc_cart_test")
     parser.add_argument("--cart-nodes-col", default="cart_total_nodes")
-    parser.add_argument("--cart-sim-col", default="pct_reaudit_cart")
+    parser.add_argument("--cart-sim-col", default="sim_old_cart_jaccard")
     parser.add_argument(
-        "--reaudit-maximize", action="store_true", default=False
+        "--reaudit-maximize", action=argparse.BooleanOptionalAction, default=True
     )
-    parser.add_argument("--reaudit-header", default="Reaudit %")
+    parser.add_argument("--reaudit-header", default="Similarity")
     parser.add_argument("--metric-header", default="Accuracy test")
     args = parser.parse_args()
 

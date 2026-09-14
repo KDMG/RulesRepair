@@ -182,11 +182,13 @@ decision_points/
 experiments/
 experiments.zip
 normative_model*.pkl
+!evaluation/qualitative/*.pkl
 quantitative_evaluation/
 *_tree_cache/
 n*.log
 sepsis_repair.log
 results_sepsis.txt
+datasets/*_cut/*.xes*
 
 # NOTE: datasets/*_cut/pn_normative.pnml is deliberately NOT excluded above
 # (only datasets/*_cut/*.xes* is) -- unlike everything else under datasets/,

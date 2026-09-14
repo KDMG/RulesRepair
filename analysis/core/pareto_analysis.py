@@ -222,9 +222,9 @@ def run_pareto_analysis(
     if cart_baseline is None:
         print("CART: baseline unavailable.")
     elif cart_is_dominated:
-        print(f"CART is dominated by {len(cart_dominators)} distinct Keep-Regrow results.")
+        print(f"CART is dominated by {len(cart_dominators)} distinct RulesRepair results.")
     else:
-        print("CART is not dominated by Keep-Regrow.")
+        print("CART is not dominated by RulesRepair.")
 
     print()
     print(f"Valid rows: {len(df)}")

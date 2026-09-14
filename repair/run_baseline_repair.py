@@ -68,9 +68,9 @@ def run_baseline_repair(
         fixed=fixed,
     )
 
-    print(f"Baseline: Pareto analysis (per trial + aggregated by config) -> {baseline_dir / 'analysis'}")
+    print(f"Baseline: per-trial Pareto analysis -> {baseline_dir / 'analysis'}")
     analysis_dir = run_trial_pareto_analysis(
-        csv_path=results_csv, out_dir=baseline_dir / "analysis",
+        csv_path=results_csv, out_dir=baseline_dir / "analysis", aggregate=False,
     )
 
     outputs = {
