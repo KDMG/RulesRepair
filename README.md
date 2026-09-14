@@ -28,6 +28,12 @@ poetry install
 source $(poetry env info --path)/bin/activate
 ```
 
+`run_pipeline.py` pins `PYTHONHASHSEED=0` for every step it runs, so mining the same event log always gives the same Petri net and decision points. If you ever run a `mining.*` or `repair.*` command directly (not through `run_pipeline.py`), set it yourself first:
+```bash
+export PYTHONHASHSEED=0
+```
+Without it, Python randomizes string hashing on every process start, which reshuffles pm4py's internal place numbering (and can occasionally change how a tie is broken during mining) -- so decision points could appear to shift or vanish between runs of the exact same log.
+
 ## Reproducing the experiments
 
 For reproducing the experiments according to our experimental setup, first launch the repair algorithm for each dataset, then run the quantitative and qualitative evaluation.

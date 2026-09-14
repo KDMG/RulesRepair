@@ -84,6 +84,13 @@ def main(argv=None):
     import os
     env = dict(os.environ)
     env["PYTHONPATH"] = str(REPO_ROOT)
+    # Without this, every fresh Python process gets a random string-hash seed,
+    # which changes the iteration order pm4py uses internally (sets/dicts of
+    # activity names). That reshuffles place numbering (p_25 one run, a
+    # different place the next) and can even change which cuts the inductive
+    # miner picks on ties -- so decision points can appear/disappear between
+    # runs on the exact same event log. Pinning it makes mining reproducible.
+    env["PYTHONHASHSEED"] = "0"
 
     print(f"step 1/5 {dataset}: split_log", flush=True)
     if args.skip_split:
