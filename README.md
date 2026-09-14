@@ -8,7 +8,7 @@ To run our application you need to have installed:
 
 * [Python 3.9](https://www.python.org/downloads/)
 
-* [Poetry](https://python-poetry.org/docs/#installation) 2.x (the committed `poetry.lock` was generated with 2.2.1), to install the dependencies listed in `pyproject.toml`
+* [Poetry 2.2.1](https://python-poetry.org/docs/#installation) (the committed `poetry.lock` was generated with 2.2.1), to install the dependencies listed in `pyproject.toml`
 
 * [Graphviz](https://graphviz.org/download/), required by the `graphviz` Python package to render trees
 
@@ -23,8 +23,8 @@ git clone https://github.com/KDMG/RulesRepair/
 cd RulesRepair/
 
 poetry env use python3.9
-# poetry lock only if you have problems with the pre-generated lock file
 poetry install
+# poetry lock if your received an error (you may have a poetry version different from 2.2.1)
 source $(poetry env info --path)/bin/activate
 ```
 
