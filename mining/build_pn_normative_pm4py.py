@@ -9,7 +9,12 @@ if str(REPO_ROOT) not in sys.path:
 import pm4py
 
 from mining.extract_decision_points import find_decision_points, declared_variables, fix_final_marking
-from pareto_explorer.backend import _render_petri_net_dot, DEFAULT_DPI
+
+# pareto_explorer is a local GUI tool, not part of the public repo (see
+# .gitignore) -- import it lazily inside render_preview() so this module
+# (needed by the core mining pipeline) still works without it. Preview
+# rendering is then simply skipped where it's not available.
+DEFAULT_DPI = 130
 
 
 def build_pn_normative(xes_path, out_pnml, noise_threshold=0.2, multi_processing=False):
@@ -23,6 +28,11 @@ def build_pn_normative(xes_path, out_pnml, noise_threshold=0.2, multi_processing
 
 
 def render_preview(net, im, fm, out_png, pnml_path=None, dpi=DEFAULT_DPI):
+    try:
+        from pareto_explorer.backend import _render_petri_net_dot
+    except ImportError:
+        print("Skipping preview: pareto_explorer (local GUI tool, not part of the public repo) is not installed.")
+        return None
     decision_point_names = set()
     if pnml_path is not None:
         valid_vars = declared_variables(pnml_path)
@@ -51,8 +61,8 @@ def main():
 
     if not args.no_preview:
         preview_path = args.preview or str(Path(args.out).with_suffix(".png"))
-        render_preview(net, im, fm, preview_path, pnml_path=args.out)
-        print(f"Preview -> {preview_path}")
+        if render_preview(net, im, fm, preview_path, pnml_path=args.out) is not None:
+            print(f"Preview -> {preview_path}")
 
 
 if __name__ == "__main__":
