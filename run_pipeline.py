@@ -78,7 +78,7 @@ def main(argv=None):
     pnml = cut_dir / "pn_normative.pnml"
     normative_dp_dir = REPO_ROOT / f"decision_points/{dataset}/normative"
     train_dp_dir = REPO_ROOT / f"decision_points/{dataset}/train"
-    normative_model = REPO_ROOT / f"normative_model_{dataset}.pkl"
+    normative_model = REPO_ROOT / f"decision_points/{dataset}/normative_model.pkl"
     out_base = REPO_ROOT / f"experiments/{dataset}/repair"
 
     import os

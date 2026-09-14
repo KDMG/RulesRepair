@@ -7,6 +7,7 @@ import pickle
 import re
 import time
 from contextlib import contextmanager
+from pathlib import Path
 
 import pandas as pd
 from sklearn.metrics import f1_score, accuracy_score
@@ -189,19 +190,28 @@ def build_reptree_baseline(df_adapt_raw, df_test_raw, max_depth, rs_old, old_tre
     return build_binary_baseline(build_reptree_tree, "REPTree", df_adapt_raw, df_test_raw, max_depth, rs_old, old_tree)
 
 
-CHEFBOOST_RULES_FILE = "outputs/rules/rules.py"
+# chefboost always writes its fitted model to <cwd>/outputs/rules/rules.py --
+# that path is hardcoded inside the library and not configurable. To avoid
+# littering the repo root with it, we chdir into a dedicated, gitignored
+# scratch folder for the duration of the fit call instead.
+REPO_ROOT = Path(__file__).resolve().parent.parent
+CHEFBOOST_SCRATCH_DIR = REPO_ROOT / ".chefboost_scratch"
+CHEFBOOST_RULES_FILE = CHEFBOOST_SCRATCH_DIR / "outputs" / "rules" / "rules.py"
 
-CHEFBOOST_FIT_LOCK_FILE = ".chefboost_fit.lock"
+CHEFBOOST_FIT_LOCK_FILE = CHEFBOOST_SCRATCH_DIR / "chefboost_fit.lock"
 
 
 @contextmanager
 def _chefboost_fit_lock():
-    os.makedirs("outputs/rules", exist_ok=True)
+    CHEFBOOST_SCRATCH_DIR.mkdir(parents=True, exist_ok=True)
     with open(CHEFBOOST_FIT_LOCK_FILE, "a+") as lock_f:
         fcntl.flock(lock_f, fcntl.LOCK_EX)
+        prev_cwd = os.getcwd()
+        os.chdir(CHEFBOOST_SCRATCH_DIR)
         try:
             yield
         finally:
+            os.chdir(prev_cwd)
             fcntl.flock(lock_f, fcntl.LOCK_UN)
 
 
