@@ -3,26 +3,13 @@ name = "tree_diff"
 version = "0.0.1"
 description = "Tree Diff for incremental learning"
 authors = ["Scott Barnett"]
-# The Python package folder is called "keep_remine_prune" (renamed in
-# 2026 from "tree_diff", to avoid having two nested "tree_diff" folders --
-# the outer one was the project/repo, "keep_remine_prune" is the
-# importable package). The poetry project name above stays "tree_diff"
-# (just metadata, no functional impact), but which folder contains the
-# package must be declared explicitly, otherwise poetry would look by
-# default for a "tree_diff/" folder that no longer exists.
 packages = [{include = "keep_remine_prune"}]
 
 [tool.poetry.dependencies]
-python = ">=3.9,<3.13"
+python = ">=3.9,<3.10"
 river = "^0.14.0"
 scikit-learn = "^1.2.0"
 
-# RQ3 attainment-field 3D interactive visualization (2026, task #64 --
-# analysis/attainment_field_visualization.py). Renders D(z) breakpoints as
-# a rotatable/zoomable/hoverable 3D scatter, exported as a standalone
-# self-contained HTML (plotly.js inlined, no server needed to view it
-# afterward). Only needed to VIEW the field, not to compute it -- not a
-# dependency of analysis/attainment_field.py itself.
 plotly = "^6.0"
 
 # rulecosi+ dependencies
@@ -31,34 +18,14 @@ bitarray = "^2.6.1"
 imodels = "^1.3.12"
 graphviz = "^0.20.1"
 
-# ID3/C4.5 retraining baselines (2026, user's explicit request, extending
-# build_cart_baseline() -- see repair/run_perturbation_repair.py's
-# build_chefboost_baseline() docstring for the full rationale, including
-# why C5.0 is NOT included).
 chefboost = "^0.0.19"
 
-# J48/REPTree retraining baselines (2026, user's explicit request -- see
-# mining/weka_baselines.py's module docstring). Pure pip install, no
-# separate weka.jar download needed (bundled). DOES need a JVM at runtime
-# (OpenJDK 8+ verified against OpenJDK 11) -- install a JDK separately,
-# e.g. `apt install openjdk-11-jdk-headless` (or your distro's equivalent);
-# not something poetry/pip can install for you.
 python-weka-wrapper3 = "^0.3.3"
 
 surround = "^0.1.2"
 
-# Process mining: mining the normative Petri net + log/PN alignment to
-# extract the decision points (mining/build_pn_normative_pm4py.py,
-# mining/regenerate_decision_points.py, mining/extract_decision_points.py,
-# mining/split_log.py). Used throughout mining/ but had never been
-# declared as a poetry dependency (installed so far via a direct pip
-# install, outside of tracking) -- added while preparing the public
-# RulesRepair repo (2026-09-10).
 pm4py = "^2.7"
 
-# GUI desktop "Pareto Front Explorer" (pareto_explorer/app.py,
-# pareto_explorer/backend.py). Same situation as pm4py: used in the
-# code but never declared in poetry -- added together with pm4py.
 PySide6 = "^6.7"
 
 
