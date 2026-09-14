@@ -14,18 +14,28 @@ To run our application you need to have installed:
 
 * [OpenJDK 8 or later](https://adoptium.net/) optional, only for the Weka C4.5/REPTree
 
-## Reproduce results
+## Installation
 
-To run our program copy and paste the following command in your terminal:
-```
+Clone the repository and install the dependencies:
+
+```bash
 git clone https://github.com/KDMG/RulesRepair/
 cd RulesRepair/
 
-poetry env use python3.9   #any Python version >=3.9 and <=3.12
+poetry env use python3.9   # any Python version >=3.9 and <=3.12
 poetry install
 source $(poetry env info --path)/bin/activate
+```
+
+## Reproducing the experiments
+
+To reproduce the experiments for a dataset, run:
+
+```bash
 poetry run python run_pipeline.py --dataset sepsis --seeds 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29
 ```
+
+Replace `sepsis` with the desired dataset name to reproduce the experiments for a different dataset.
 
 ## Contact
 
