@@ -6,7 +6,7 @@ Repairing Decision Rules in Data-Aware Process Models
 
 To run our application you need to have installed:
 
-* [Python 3.9 to 3.12](https://www.python.org/downloads/)
+* [Python 3.9](https://www.python.org/downloads/)
 
 * [Poetry](https://python-poetry.org/docs/#installation), to install the dependencies listed in `pyproject.toml`
 
@@ -22,7 +22,8 @@ Clone the repository and install the dependencies:
 git clone https://github.com/KDMG/RulesRepair/
 cd RulesRepair/
 
-poetry env use python3.9   # any Python version >=3.9 and <=3.12
+poetry env use python3.9
+# poetry lock only if you have problems with the pre-generated lock file
 poetry install
 source $(poetry env info --path)/bin/activate
 ```
