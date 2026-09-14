@@ -31,7 +31,7 @@ source $(poetry env info --path)/bin/activate
 
 For reproducing the experiments according to our experimental setup, first launch the repair algorithm for each dataset, then run the quantitative and qualitative evaluation.
 
-### Repair for a single dataset
+### Experiments
 To reproduce the experiments for a dataset, run:
 
 ```bash
@@ -39,6 +39,15 @@ poetry run python run_pipeline.py --dataset sepsis --seeds 0,1,2,3,4,5,6,7,8,9,1
 ```
 
 Replace `sepsis` with the desired dataset name to reproduce the experiments for a different dataset.
+
+### Quantitative evaluation
+
+### Qualitative evaluation
+You can inspect the Pareto explorer by running 
+```bash
+python pareto_explorer/app.py
+```
+you can find the files used to show the qualitative evaluation in the folder 
 
 ## Contact
 
