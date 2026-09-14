@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from analysis.core.compare_kr_cart_dominance import DEFAULT_MAX_DEPTH, DEFAULT_NODES_MIN, DEFAULT_TOL, infer_dp_label
+from analysis.core.compare_rulesrepair_cart_dominance import DEFAULT_MAX_DEPTH, DEFAULT_NODES_MIN, DEFAULT_TOL, infer_dp_label
 from analysis.rq2.statistical.igd_core import (
     build_seed_level_table, build_trial_level_table,
     build_seed_level_tables_by_mutation_type, build_trial_level_tables_by_mutation_type,
@@ -21,7 +21,7 @@ def main_igd_comparison(argv=None):
     )
     parser.add_argument(
         "--max-depth", type=int, default=DEFAULT_MAX_DEPTH,
-        help=f"Shared tree-depth constraint for KR/CART (default {DEFAULT_MAX_DEPTH}) -- used only to "
+        help=f"Shared tree-depth constraint for RulesRepair/CART (default {DEFAULT_MAX_DEPTH}) -- used only to "
              "derive the node-count normalization bound (nodes_bounds()).",
     )
     parser.add_argument("--nodes-min", type=int, default=DEFAULT_NODES_MIN)
@@ -50,7 +50,7 @@ def main_igd_comparison(argv=None):
     parser.add_argument(
         "--baseline-acc-col", type=str, default="acc_cart_test",
         help="Raw accuracy column for the baseline (default acc_cart_test -- CART). Set together with "
-             "--baseline-nodes-col/--baseline-jaccard-col/--baseline-label to compare KR against a "
+             "--baseline-nodes-col/--baseline-jaccard-col/--baseline-label to compare RulesRepair against a "
              "different baseline (e.g. J48: acc_j48_test/j48_total_nodes/sim_old_j48_jaccard) that has "
              "the required 3 columns in pareto_per_trial.csv -- see analysis/trial_pareto_analysis.py's "
              "OTHER_BASELINE_VALUE_COLS for the exact column names each baseline carries.",
@@ -59,7 +59,7 @@ def main_igd_comparison(argv=None):
     parser.add_argument("--baseline-jaccard-col", type=str, default="sim_old_cart_jaccard")
     parser.add_argument(
         "--baseline-label", type=str, default="CART",
-        help="Human-readable name for the baseline, used in the printed 'comparison=KR vs <label>' line "
+        help="Human-readable name for the baseline, used in the printed 'comparison=RulesRepair vs <label>' line "
              "and the 'winner' column -- NOT inferred from --baseline-*-col, must be set explicitly when "
              "those are changed (default CART).",
     )

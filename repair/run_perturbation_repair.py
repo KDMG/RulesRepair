@@ -361,22 +361,22 @@ def run_repair(
         ) = build_reptree_baseline(df_adapt_raw, df_test_raw, max_depth, rs_old, old_tree=old_tree)
         reptree_train_time_sec = time.perf_counter() - reptree_start
 
-        kr_cache = {}
+        rulesrepair_cache = {}
 
         for leaf_id, forced_ids in path_list:
             for w_simp in w_simps:
                 for w_simi in w_simis:
-                    kr_start = time.perf_counter()
+                    rulesrepair_start = time.perf_counter()
                     new_tree = keep_remine_prune_alg.grow_tree(
                         X_adapt, y_adapt, old_tree=old_tree,
                         w_simp=w_simp, w_simi=w_simi,
                         max_depth=max_depth, grow_func=keep_remine_prune_alg.sklearn_grow_func,
-                        cache=kr_cache, forced_keep_ids=forced_ids,
+                        cache=rulesrepair_cache, forced_keep_ids=forced_ids,
                     )
-                    kr_grow_time_sec = time.perf_counter() - kr_start
+                    rulesrepair_grow_time_sec = time.perf_counter() - rulesrepair_start
 
-                    pred_new_adapt = predict(new_tree, X_adapt, cache=kr_cache)
-                    pred_new_test = predict(new_tree, X_test, cache=kr_cache)
+                    pred_new_adapt = predict(new_tree, X_adapt, cache=rulesrepair_cache)
+                    pred_new_test = predict(new_tree, X_test, cache=rulesrepair_cache)
                     f1_new_adapt = f1_macro(y_adapt, pred_new_adapt)
                     f1_new_test = f1_macro(y_test, pred_new_test)
                     acc_new_adapt = acc_score(y_adapt, pred_new_adapt)
@@ -436,7 +436,7 @@ def run_repair(
                         "sim_old_cart_labeled": round(sim_old_cart_labeled, 4) if sim_old_cart_labeled is not None else None,
                         "sim_old_cart_jaccard": round(sim_old_cart_jaccard, 4) if sim_old_cart_jaccard is not None else None,
                         "cart_train_time_sec": round(cart_train_time_sec, 6),
-                        "kr_grow_time_sec": round(kr_grow_time_sec, 6),
+                        "rulesrepair_grow_time_sec": round(rulesrepair_grow_time_sec, 6),
                         "f1_cart_entropy_adapt": f1_cart_entropy_adapt,
                         "f1_cart_entropy_test": f1_cart_entropy_test,
                         "acc_cart_entropy_adapt": acc_cart_entropy_adapt,

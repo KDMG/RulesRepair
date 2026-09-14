@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from analysis.core.compare_kr_cart_dominance import (
+from analysis.core.compare_rulesrepair_cart_dominance import (
     DEFAULT_MAX_DEPTH, DEFAULT_NODES_MIN, DEFAULT_TOL, _latex_escape, infer_dp_label,
 )
 from analysis.core.mutation_types import MUTATION_TYPES
@@ -101,9 +101,9 @@ def _no_mutation_diff_for_dp(csv_paths, max_depth, nodes_min, tol,
     if len(per_trial) != 1:
         return None
     row = per_trial.iloc[0]
-    if pd.isna(row["igd_kr"]) or pd.isna(row["igd_baseline"]):
+    if pd.isna(row["igd_rulesrepair"]) or pd.isna(row["igd_baseline"]):
         return None
-    return float(row["igd_baseline"] - row["igd_kr"])
+    return float(row["igd_baseline"] - row["igd_rulesrepair"])
 
 
 DEFAULT_BASELINES = [
@@ -218,7 +218,7 @@ def _build_dataset_pooled_trial_table(csv_paths, mutation_type, max_depth, nodes
         if len(t):
             tables.append(t)
     if not tables:
-        return pd.DataFrame(columns=["decision_point", "seed", "trial_id", "igd_kr_trial", "igd_baseline_trial"])
+        return pd.DataFrame(columns=["decision_point", "seed", "trial_id", "igd_rulesrepair_trial", "igd_baseline_trial"])
     return pd.concat(tables, ignore_index=True)
 
 
@@ -354,7 +354,7 @@ def unified_results_to_latex(df, alpha=0.05,
                 dp_cell = f"\\multirow{{{dp_rows}}}{{*}}{{{_latex_escape(dp)}}}" if i == 0 else ""
 
                 baseline_display = BASELINE_DISPLAY.get(baseline, baseline)
-                baseline_text = f"{_latex_escape(baseline_display)} vs KR"
+                baseline_text = f"{_latex_escape(baseline_display)} vs RulesRepair"
 
                 cell_texts = [_hl_cell_text(view_lookup.get(v), alpha) for v in VIEW_ORDER]
                 lines.append(
@@ -374,7 +374,7 @@ def unified_results_to_latex(df, alpha=0.05,
     lines.append("}")
     lines.append(
         f"\\vspace{{2pt}}\n{{\\footnotesize $^*$Holm-adjusted $p < {alpha:g}$ "
-        "(KR vs. baseline significantly different on paired IGD+).}"
+        "(RulesRepair vs. baseline significantly different on paired IGD+).}"
     )
     lines.append(f"\\caption{{{caption}}}")
     lines.append(f"\\label{{{label}}}")
@@ -428,7 +428,7 @@ def unified_results_to_latex_by_dataset(df, alpha=0.05,
     lines.append("}")
     lines.append(
         f"\\vspace{{2pt}}\n{{\\footnotesize $^*$Holm-adjusted $p < {alpha:g}$ "
-        "(KR vs. baseline significantly different on paired IGD+).}"
+        "(RulesRepair vs. baseline significantly different on paired IGD+).}"
     )
     lines.append(f"\\caption{{{caption}}}")
     lines.append(f"\\label{{{label}}}")

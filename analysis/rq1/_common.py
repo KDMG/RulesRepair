@@ -4,7 +4,7 @@ import glob as glob_module
 
 import pandas as pd
 
-from analysis.core.compare_kr_cart_dominance import DEFAULT_TOL, _dominates
+from analysis.core.compare_rulesrepair_cart_dominance import DEFAULT_TOL, _dominates
 
 
 _DATASET_RE = re.compile(r"experiments[/\\]([^/\\]+)[/\\]repair[/\\]")

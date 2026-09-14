@@ -20,12 +20,12 @@ def _weakly_dominates(a_acc, a_nodes, a_jaccard, b_acc, b_nodes, b_jaccard, tol=
 
 
 def classify_trial(front_rows, cart_acc, cart_nodes, cart_jaccard, tol=DEFAULT_TOL):
-    kr_wins = any(
+    rulesrepair_wins = any(
         _dominates(acc, nodes, jaccard, cart_acc, cart_nodes, cart_jaccard, tol)
         for acc, nodes, jaccard in front_rows
     )
-    if kr_wins:
-        return "kr"
+    if rulesrepair_wins:
+        return "rulesrepair"
     cart_wins = all(
         _dominates(cart_acc, cart_nodes, cart_jaccard, acc, nodes, jaccard, tol)
         for acc, nodes, jaccard in front_rows
@@ -190,11 +190,11 @@ def run_one(csv_path, label=None, tol=DEFAULT_TOL, max_depth=DEFAULT_MAX_DEPTH, 
         outcome = classify_trial(front_rows, cart_acc, cart_nodes, cart_jaccard, tol)
 
         cart_front = [(cart_acc, cart_nodes, cart_jaccard)]
-        coverage_kr_over_cart = coverage(front_rows, cart_front, tol)
-        coverage_cart_over_kr = coverage(cart_front, front_rows, tol)
+        coverage_rulesrepair_over_cart = coverage(front_rows, cart_front, tol)
+        coverage_cart_over_rulesrepair = coverage(cart_front, front_rows, tol)
 
-        coverage_classical_kr_over_cart = coverage_classical(front_rows, cart_front, tol)
-        coverage_classical_cart_over_kr = coverage_classical(cart_front, front_rows, tol)
+        coverage_classical_rulesrepair_over_cart = coverage_classical(front_rows, cart_front, tol)
+        coverage_classical_cart_over_rulesrepair = coverage_classical(cart_front, front_rows, tol)
 
         nodes_min_b, nodes_max_b = nodes_bounds(max_depth, nodes_min)
         front_norm = [
@@ -202,11 +202,11 @@ def run_one(csv_path, label=None, tol=DEFAULT_TOL, max_depth=DEFAULT_MAX_DEPTH, 
             for acc, nodes, jaccard in front_rows
         ]
         cart_norm = normalize_point(cart_acc, cart_nodes, cart_jaccard, nodes_min_b, nodes_max_b, acc_scale)
-        hv_kr = hypervolume(front_norm)
+        hv_rulesrepair = hypervolume(front_norm)
         hv_cart = hypervolume([cart_norm])
 
-        eps_kr_over_cart = epsilon_indicator(front_norm, [cart_norm])
-        eps_cart_over_kr = epsilon_indicator([cart_norm], front_norm)
+        eps_rulesrepair_over_cart = epsilon_indicator(front_norm, [cart_norm])
+        eps_cart_over_rulesrepair = epsilon_indicator([cart_norm], front_norm)
 
         acc_matched_point = find_accuracy_matched_point(front_rows, cart_acc, acc_match_tol)
         if acc_matched_point is not None:
@@ -232,25 +232,25 @@ def run_one(csv_path, label=None, tol=DEFAULT_TOL, max_depth=DEFAULT_MAX_DEPTH, 
             "trial_id": trial_id,
             "operator": operator,
             "outcome": outcome,
-            "coverage_kr_over_cart": coverage_kr_over_cart,
-            "coverage_cart_over_kr": coverage_cart_over_kr,
-            "coverage_classical_kr_over_cart": coverage_classical_kr_over_cart,
-            "coverage_classical_cart_over_kr": coverage_classical_cart_over_kr,
-            "hv_kr": hv_kr,
+            "coverage_rulesrepair_over_cart": coverage_rulesrepair_over_cart,
+            "coverage_cart_over_rulesrepair": coverage_cart_over_rulesrepair,
+            "coverage_classical_rulesrepair_over_cart": coverage_classical_rulesrepair_over_cart,
+            "coverage_classical_cart_over_rulesrepair": coverage_classical_cart_over_rulesrepair,
+            "hv_rulesrepair": hv_rulesrepair,
             "hv_cart": hv_cart,
-            "eps_kr_over_cart": eps_kr_over_cart,
-            "eps_cart_over_kr": eps_cart_over_kr,
+            "eps_rulesrepair_over_cart": eps_rulesrepair_over_cart,
+            "eps_cart_over_rulesrepair": eps_cart_over_rulesrepair,
             "acc_matched_found": acc_matched_found,
             "acc_matched_acc": m_acc,
             "nodes_gap_matched": nodes_gap_matched,
             "jaccard_gap_matched": jaccard_gap_matched,
             "lex_w_simp": rep["w_simp"], "lex_w_simi": rep["w_simi"], "lex_t": rep["t"],
-            "acc_kr": rep["acc_new_test"], "acc_cart": cart_acc,
+            "acc_rulesrepair": rep["acc_new_test"], "acc_cart": cart_acc,
             "acc_improvement": rep["acc_new_test"] - cart_acc,
-            "nodes_kr": rep["total_nodes"], "nodes_cart": cart_nodes,
-            "nodes_improvement": cart_nodes - rep["total_nodes"],  # positive = KR simpler
-            "jaccard_kr": rep["sim_old_new_jaccard"], "jaccard_cart": cart_jaccard,
-            "jaccard_improvement": rep["sim_old_new_jaccard"] - cart_jaccard,  # positive = KR more similar to T_old
+            "nodes_rulesrepair": rep["total_nodes"], "nodes_cart": cart_nodes,
+            "nodes_improvement": cart_nodes - rep["total_nodes"],  # positive = RulesRepair simpler
+            "jaccard_rulesrepair": rep["sim_old_new_jaccard"], "jaccard_cart": cart_jaccard,
+            "jaccard_improvement": rep["sim_old_new_jaccard"] - cart_jaccard,  # positive = RulesRepair more similar to T_old
         })
 
     rep_df = pd.DataFrame(rep_rows)
@@ -259,24 +259,24 @@ def run_one(csv_path, label=None, tol=DEFAULT_TOL, max_depth=DEFAULT_MAX_DEPTH, 
 
 def summarize(rep_df, label):
     n_total = len(rep_df)
-    n_kr = int((rep_df["outcome"] == "kr").sum())
+    n_rulesrepair = int((rep_df["outcome"] == "rulesrepair").sum())
     n_cart = int((rep_df["outcome"] == "cart").sum())
     n_incomparable = int((rep_df["outcome"] == "incomparable").sum())
-    n_resolved = n_kr + n_cart
+    n_resolved = n_rulesrepair + n_cart
 
-    binom_result = binomtest(n_kr, n_resolved, p=0.5, alternative="greater") if n_resolved else None
+    binom_result = binomtest(n_rulesrepair, n_resolved, p=0.5, alternative="greater") if n_resolved else None
 
     return {
         "label": label,
         "n_total": n_total,
-        "n_kr": n_kr,
+        "n_rulesrepair": n_rulesrepair,
         "n_cart": n_cart,
         "n_incomparable": n_incomparable,
         "n_resolved": n_resolved,
         "r_inc": n_incomparable / n_total if n_total else float("nan"),
-        "p_hat_resolved": n_kr / n_resolved if n_resolved else float("nan"),
-        "p_hat_resolved_ci": _proportion_ci_text(n_kr, n_resolved),
-        "ndr": (n_kr - n_cart) / n_total if n_total else float("nan"),
+        "p_hat_resolved": n_rulesrepair / n_resolved if n_resolved else float("nan"),
+        "p_hat_resolved_ci": _proportion_ci_text(n_rulesrepair, n_resolved),
+        "ndr": (n_rulesrepair - n_cart) / n_total if n_total else float("nan"),
         "p_value_one_sided": binom_result.pvalue if binom_result is not None else None,
         "_rep_df": rep_df,
     }

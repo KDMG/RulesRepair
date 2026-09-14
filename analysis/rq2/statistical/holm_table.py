@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from analysis.core.compare_kr_cart_dominance import _holm_bonferroni
+from analysis.core.compare_rulesrepair_cart_dominance import _holm_bonferroni
 from analysis.core.validation import ValidationReport
 from analysis.rq2.statistical.rq_table import DATASET_DISPLAY, unified_results_to_latex_by_dataset
 

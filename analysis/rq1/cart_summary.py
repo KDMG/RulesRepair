@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from analysis.core.compare_kr_cart_dominance import (
+from analysis.core.compare_rulesrepair_cart_dominance import (
     DEFAULT_TOL, DEFAULT_MAX_DEPTH, DEFAULT_NODES_MIN, run_one, _dominates,
 )
 from analysis.rq1._common import (
@@ -31,7 +31,7 @@ def collect_trials(csv_paths, tol=DEFAULT_TOL, max_depth=DEFAULT_MAX_DEPTH, node
         raise SystemExit("No usable pareto_per_trial.csv files found among the given paths.")
 
     combined = pd.concat(frames, ignore_index=True)
-    combined[METRIC_COL] = combined["coverage_cart_over_kr"]
+    combined[METRIC_COL] = combined["coverage_cart_over_rulesrepair"]
     return combined
 
 
@@ -447,10 +447,10 @@ def main_cart_summary(argv=None):
               f"files later via -merge).\n")
 
     col = METRIC_COL
-    print(f"Metric: {col}, per trial, D_i = the fraction of that trial's own KR "
+    print(f"Metric: {col}, per trial, D_i = the fraction of that trial's own RulesRepair "
           f"Pareto-front points that are strictly dominated by CART's single point "
           f"(CART not worse on any objective and strictly better on at least one, "
-          f"see _dominates() in compare_kr_cart_dominance.py). Exact ties (identical "
+          f"see _dominates() in compare_rulesrepair_cart_dominance.py). Exact ties (identical "
           f"objective vector) are explicitly not counted as dominated. This is exactly "
           f"\"if I pick one of my algorithm's front points, what's the probability CART "
           f"was actually better\", per trial.")

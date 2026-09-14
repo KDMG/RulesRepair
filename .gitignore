@@ -179,6 +179,7 @@ decision_points/
 experiments/
 experiments.zip
 normative_model*.pkl
+quantitative_evaluation/
 *_tree_cache/
 n*.log
 sepsis_repair.log

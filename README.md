@@ -42,12 +42,34 @@ Replace `sepsis` with the desired dataset name to reproduce the experiments for 
 
 ### Quantitative evaluation
 
+Once `experiments/<dataset>/repair/seed_*/<dp>/` holds `pareto_per_trial.csv` files for all decision points and seeds, compute RQ1 and RQ2. Results are written to `evaluation/quantitative/`.
+
+**RQ1 (dominance over the baselines):**
+```bash
+python -m analysis.rq1 cart-summary experiments/<dataset>/repair/seed_*/*/mutated/analysis/pareto_per_trial.csv \
+    -out-csv evaluation/quantitative/rq1/summary_<dataset>.csv
+
+python -m analysis.rq1 dominance-advantage experiments/<dataset>/repair/seed_*/*/mutated/analysis/pareto_per_trial.csv \
+    --group-summary-out evaluation/quantitative/rq1/group_summary_<dataset>.csv \
+    --mutation-summary-out evaluation/quantitative/rq1/mutation_summary_<dataset>.csv
+```
+Both give results broken down by decision point and by mutation type as well as aggregated.
+
+**RQ2 (statistical significance vs. the baselines):**
+```bash
+python -m analysis.rq2.statistical rq-table experiments/<dataset>/repair/seed_*/*/mutated/analysis/pareto_per_trial.csv \
+    --dataset <dataset> --trial-level --out-dir evaluation/quantitative/rq2
+```
+Writes one table per decision point with an "overall" row plus one row per mutation type. Add `--by-dataset` for a version pooled into one row per dataset instead.
+
+**Computational time:** every row of `results.csv` stores the per-trial training time in the `*_train_time_sec` columns; aggregate them directly with pandas, e.g. `df.groupby("mutation_type")["repair_train_time_sec"].mean()`.
+
 ### Qualitative evaluation
-You can inspect the Pareto explorer by running 
+You can inspect the Pareto explorer by running
 ```bash
 python pareto_explorer/app.py
 ```
-you can find the files used to show the qualitative evaluation in the folder 
+you can find the files used to show the qualitative evaluation in the `evaluation/qualitative/` folder.
 
 ## Contact
 

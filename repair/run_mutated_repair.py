@@ -39,7 +39,7 @@ RESULTS_COLUMNS = [
     "f1_cart_adapt", "f1_cart_test", "acc_cart_adapt", "acc_cart_test",
     "cart_total_nodes", "cart_pct_to_reaudit",
     "sim_old_cart", "sim_old_cart_labeled", "sim_old_cart_jaccard",
-    "cart_train_time_sec", "kr_grow_time_sec",
+    "cart_train_time_sec", "rulesrepair_grow_time_sec",
     "f1_cart_entropy_adapt", "f1_cart_entropy_test", "acc_cart_entropy_adapt", "acc_cart_entropy_test",
     "cart_entropy_total_nodes", "cart_entropy_pct_to_reaudit",
     "sim_old_cart_entropy", "sim_old_cart_entropy_labeled", "sim_old_cart_entropy_jaccard",
@@ -49,9 +49,6 @@ RESULTS_COLUMNS = [
     "f1_j48_adapt", "f1_j48_test", "acc_j48_adapt", "acc_j48_test",
     "j48_total_nodes", "j48_pct_to_reaudit", "pct_reaudit_j48",
     "sim_old_j48", "sim_old_j48_labeled", "sim_old_j48_jaccard", "j48_train_time_sec",
-    "f1_j48_unbounded_adapt", "f1_j48_unbounded_test", "acc_j48_unbounded_adapt", "acc_j48_unbounded_test",
-    "j48_unbounded_total_nodes", "j48_unbounded_pct_to_reaudit", "pct_reaudit_j48_unbounded",
-    "sim_old_j48_unbounded", "sim_old_j48_unbounded_labeled", "sim_old_j48_unbounded_jaccard",
     "f1_reptree_adapt", "f1_reptree_test", "acc_reptree_adapt", "acc_reptree_test",
     "reptree_total_nodes", "reptree_pct_to_reaudit", "pct_reaudit_reptree",
     "sim_old_reptree", "sim_old_reptree_labeled", "sim_old_reptree_jaccard", "reptree_train_time_sec",
@@ -377,24 +374,24 @@ def run_mutated_repair(
                 mark_reaudit_nodes(mutant_tree, reptree_tree)
                 _, _, pct_reaudit_reptree = reaudit_summary(reptree_tree)
 
-            kr_cache = {}
+            rulesrepair_cache = {}
 
             path_list = path_lists_by_trial[trial_idx - 1]
 
             for leaf_id, forced_ids in path_list:
                 for w_simp in w_simps:
                     for w_simi in w_simis:
-                        kr_start = time.perf_counter()
+                        rulesrepair_start = time.perf_counter()
                         new_tree = keep_remine_prune_alg.grow_tree(
                             X_adapt, y_adapt, old_tree=mutant_tree,
                             w_simp=w_simp, w_simi=w_simi,
                             max_depth=max_depth, grow_func=keep_remine_prune_alg.sklearn_grow_func,
-                            cache=kr_cache, forced_keep_ids=forced_ids,
+                            cache=rulesrepair_cache, forced_keep_ids=forced_ids,
                         )
-                        kr_grow_time_sec = time.perf_counter() - kr_start
+                        rulesrepair_grow_time_sec = time.perf_counter() - rulesrepair_start
 
-                        pred_new_adapt = predict(new_tree, X_adapt, cache=kr_cache)
-                        pred_new_test = predict(new_tree, X_test, cache=kr_cache)
+                        pred_new_adapt = predict(new_tree, X_adapt, cache=rulesrepair_cache)
+                        pred_new_test = predict(new_tree, X_test, cache=rulesrepair_cache)
                         f1_new_adapt = f1_macro(y_adapt, pred_new_adapt)
                         f1_new_test = f1_macro(y_test, pred_new_test)
                         acc_new_adapt = acc_score(y_adapt, pred_new_adapt)
@@ -453,7 +450,7 @@ def run_mutated_repair(
                             "sim_old_cart_labeled": round(sim_old_cart_labeled, 4) if sim_old_cart_labeled is not None else None,
                             "sim_old_cart_jaccard": round(sim_old_cart_jaccard, 4) if sim_old_cart_jaccard is not None else None,
                             "cart_train_time_sec": round(cart_train_time_sec, 6),
-                            "kr_grow_time_sec": round(kr_grow_time_sec, 6),
+                            "rulesrepair_grow_time_sec": round(rulesrepair_grow_time_sec, 6),
                             "f1_cart_entropy_adapt": f1_cart_entropy_adapt,
                             "f1_cart_entropy_test": f1_cart_entropy_test,
                             "acc_cart_entropy_adapt": acc_cart_entropy_adapt,
@@ -482,16 +479,6 @@ def run_mutated_repair(
                             "sim_old_j48_labeled": round(sim_old_j48_labeled, 4) if sim_old_j48_labeled is not None else None,
                             "sim_old_j48_jaccard": round(sim_old_j48_jaccard, 4) if sim_old_j48_jaccard is not None else None,
                             "j48_train_time_sec": round(j48_train_time_sec, 6),
-                            "f1_j48_unbounded_adapt": f1_j48_unbounded_adapt,
-                            "f1_j48_unbounded_test": f1_j48_unbounded_test,
-                            "acc_j48_unbounded_adapt": acc_j48_unbounded_adapt,
-                            "acc_j48_unbounded_test": acc_j48_unbounded_test,
-                            "j48_unbounded_total_nodes": j48_unbounded_total_nodes,
-                            "j48_unbounded_pct_to_reaudit": 100.0 if j48_unbounded_tree is not None else None,
-                            "pct_reaudit_j48_unbounded": pct_reaudit_j48_unbounded,
-                            "sim_old_j48_unbounded": round(sim_old_j48_unbounded, 4) if sim_old_j48_unbounded is not None else None,
-                            "sim_old_j48_unbounded_labeled": round(sim_old_j48_unbounded_labeled, 4) if sim_old_j48_unbounded_labeled is not None else None,
-                            "sim_old_j48_unbounded_jaccard": round(sim_old_j48_unbounded_jaccard, 4) if sim_old_j48_unbounded_jaccard is not None else None,
                             "f1_reptree_adapt": f1_reptree_adapt,
                             "f1_reptree_test": f1_reptree_test,
                             "acc_reptree_adapt": acc_reptree_adapt,

@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from analysis.core.compare_kr_cart_dominance import DEFAULT_MAX_DEPTH, DEFAULT_NODES_MIN, DEFAULT_TOL
+from analysis.core.compare_rulesrepair_cart_dominance import DEFAULT_MAX_DEPTH, DEFAULT_NODES_MIN, DEFAULT_TOL
 from analysis.rq2.statistical.rq_table import (
     build_unified_results_table, build_unified_results_table_trial_level,
     build_unified_results_table_trial_level_by_dataset,

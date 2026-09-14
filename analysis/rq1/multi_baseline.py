@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from analysis.core.compare_kr_cart_dominance import DEFAULT_TOL, coverage_classical
+from analysis.core.compare_rulesrepair_cart_dominance import DEFAULT_TOL, coverage_classical
 from analysis.rq1._common import _load_merge_csvs, _quartile_row
 
 
@@ -49,7 +49,7 @@ _MB_DATASET_RE = re.compile(r"experiments[/\\]([^/\\]+)[/\\]repair[/\\]")
 _MB_SEED_RE = re.compile(r"seed_([^/\\]+)[/\\]")
 
 
-MB_RAW_COLUMNS = ["dataset", "seed", "decision_point", "trial_id", "operator", "baseline", "coverage_classical_over_kr"]
+MB_RAW_COLUMNS = ["dataset", "seed", "decision_point", "trial_id", "operator", "baseline", "coverage_classical_over_rulesrepair"]
 
 
 def mb_infer_dataset(csv_path):
@@ -121,7 +121,7 @@ def mb_collect_trials(csv_paths, baselines=BASELINE_PREFIXES, tol=DEFAULT_TOL):
                 rows.append({
                     "dataset": dataset, "seed": seed, "decision_point": decision_point,
                     "trial_id": trial_id, "operator": operator, "baseline": prefix,
-                    "coverage_classical_over_kr": frac,
+                    "coverage_classical_over_rulesrepair": frac,
                 })
 
     if n_unmatched:
@@ -156,7 +156,7 @@ def mb_print_summary_table(df, title):
               f"{r['median']:<10.4f}{r['q1']:<10.4f}{r['q3']:<10.4f}{r['iqr']:<10.4f}{r['mean']:<10.4f}")
 
 
-def by_dataset_baseline_summary(all_trials, col="coverage_classical_over_kr"):
+def by_dataset_baseline_summary(all_trials, col="coverage_classical_over_rulesrepair"):
     rows = [_quartile_row(group[col], f"{dataset}/{baseline}")
             for (dataset, baseline), group in all_trials.groupby(["dataset", "baseline"])]
     return pd.DataFrame(rows).sort_values("group").reset_index(drop=True)
@@ -176,7 +176,7 @@ def _mb_format_median_iqr(vals, as_percent=True, decimals=1):
 
 
 def multi_baseline_latex_table(
-        all_trials, col="coverage_classical_over_kr", as_percent=True, decimals=1,
+        all_trials, col="coverage_classical_over_rulesrepair", as_percent=True, decimals=1,
         baselines=BASELINE_PREFIXES,
         caption="Probability that a point on RulesRepair's own Pareto front is (weakly) "
                 "dominated by each baseline's single point (CART, J48, REPTree), reported "

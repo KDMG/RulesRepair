@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 from scipy.stats import norm, wilcoxon
 
-from analysis.core.compare_kr_cart_dominance import (
+from analysis.core.compare_rulesrepair_cart_dominance import (
     DEFAULT_MAX_DEPTH, DEFAULT_NODES_MIN, DEFAULT_TOL,
     _effect_size_label, _holm_bonferroni, infer_dp_label, infer_seed_from_path,
     nodes_bounds, normalize_point, rank_biserial_correlation,
@@ -120,16 +120,16 @@ def per_trial_normalized_sets(df, max_depth=DEFAULT_MAX_DEPTH, nodes_min=DEFAULT
             group, f1_col="acc_new_test", nodes_col="total_nodes", reaudit_col="sim_old_new_jaccard",
             tolerance=tol, reaudit_maximize=True,
         )
-        kr_rows = group[is_pareto]
-        kr_front_norm = deduplicate_points([
+        rulesrepair_rows = group[is_pareto]
+        rulesrepair_front_norm = deduplicate_points([
             normalize_point(acc, nodes, jac, nodes_min_b, nodes_max_b)
-            for acc, nodes, jac in zip(kr_rows["acc_new_test"], kr_rows["total_nodes"], kr_rows["sim_old_new_jaccard"])
+            for acc, nodes, jac in zip(rulesrepair_rows["acc_new_test"], rulesrepair_rows["total_nodes"], rulesrepair_rows["sim_old_new_jaccard"])
         ])
         baseline_norm = normalize_point(
             float(group[baseline_acc_col].iloc[0]), float(group[baseline_nodes_col].iloc[0]),
             float(group[baseline_jaccard_col].iloc[0]), nodes_min_b, nodes_max_b,
         )
-        result[trial_id] = (kr_front_norm, baseline_norm)
+        result[trial_id] = (rulesrepair_front_norm, baseline_norm)
     return result
 
 
@@ -142,17 +142,17 @@ def per_trial_igd(df, max_depth=DEFAULT_MAX_DEPTH, nodes_min=DEFAULT_NODES_MIN, 
         baseline_jaccard_col=baseline_jaccard_col,
     )
     rows = []
-    for trial_id, (kr_front_norm, cart_norm) in trial_sets.items():
-        pooled = deduplicate_points(kr_front_norm + [cart_norm])
+    for trial_id, (rulesrepair_front_norm, cart_norm) in trial_sets.items():
+        pooled = deduplicate_points(rulesrepair_front_norm + [cart_norm])
         ref_mask = non_dominated_mask(pooled, tol=tol)
         reference_front = [p for p, keep in zip(pooled, ref_mask) if keep]
 
         rows.append({
             "trial_id": trial_id,
-            "igd_kr": igd_plus(kr_front_norm, reference_front),
+            "igd_rulesrepair": igd_plus(rulesrepair_front_norm, reference_front),
             "igd_baseline": igd_plus([cart_norm], reference_front),
             "n_reference": len(reference_front),
-            "n_kr_front": len(kr_front_norm),
+            "n_rulesrepair_front": len(rulesrepair_front_norm),
         })
     return pd.DataFrame(rows)
 
@@ -179,7 +179,7 @@ def build_seed_level_table(csv_paths, max_depth=DEFAULT_MAX_DEPTH, nodes_min=DEF
             "decision_point": infer_dp_label(p),
             "seed": seed,
             "n_trials": len(per_trial),
-            "igd_kr_seed": float(per_trial["igd_kr"].median()) if len(per_trial) else float("nan"),
+            "igd_rulesrepair_seed": float(per_trial["igd_rulesrepair"].median()) if len(per_trial) else float("nan"),
             "igd_baseline_seed": float(per_trial["igd_baseline"].median()) if len(per_trial) else float("nan"),
         })
     if len(dp_labels) > 1:
@@ -213,14 +213,14 @@ def build_trial_level_table(csv_paths, max_depth=DEFAULT_MAX_DEPTH, nodes_min=DE
         for _, prow in per_trial.iterrows():
             rows.append({
                 "decision_point": dp_label, "seed": seed, "trial_id": prow["trial_id"],
-                "igd_kr_trial": float(prow["igd_kr"]), "igd_baseline_trial": float(prow["igd_baseline"]),
+                "igd_rulesrepair_trial": float(prow["igd_rulesrepair"]), "igd_baseline_trial": float(prow["igd_baseline"]),
             })
     if len(dp_labels) > 1:
         raise ValueError(
             f"Input paths span {len(dp_labels)} different decision points ({sorted(dp_labels)}) -- "
             f"pass paths for exactly one decision point at a time."
         )
-    return pd.DataFrame(rows, columns=["decision_point", "seed", "trial_id", "igd_kr_trial", "igd_baseline_trial"])
+    return pd.DataFrame(rows, columns=["decision_point", "seed", "trial_id", "igd_rulesrepair_trial", "igd_baseline_trial"])
 
 
 def build_trial_level_tables_by_mutation_type(csv_paths, mutation_types=MUTATION_TYPES,
@@ -257,8 +257,8 @@ def build_seed_level_tables_by_mutation_type(csv_paths, mutation_types=MUTATION_
 
 
 def decision_point_igd_test(seed_table, alpha=0.05, sd_zero_tol=DEFAULT_TOL, baseline_label="CART"):
-    seed_table = seed_table.dropna(subset=["igd_kr_seed", "igd_baseline_seed"])
-    diffs = (seed_table["igd_baseline_seed"] - seed_table["igd_kr_seed"]).tolist()
+    seed_table = seed_table.dropna(subset=["igd_rulesrepair_seed", "igd_baseline_seed"])
+    diffs = (seed_table["igd_baseline_seed"] - seed_table["igd_rulesrepair_seed"]).tolist()
     n = len(diffs)
 
     wilcoxon_stat, p_raw = None, None
@@ -273,12 +273,12 @@ def decision_point_igd_test(seed_table, alpha=0.05, sd_zero_tol=DEFAULT_TOL, bas
     dz_diag = cohens_d_z_diagnostics(diffs, sd_zero_tol=sd_zero_tol)
 
     if p_holm is not None and p_holm < alpha and hl_estimate is not None:
-        winner = "KR" if hl_estimate > 0 else baseline_label
+        winner = "RulesRepair" if hl_estimate > 0 else baseline_label
     else:
         winner = "no significant difference"
 
     return {
-        "comparison": f"KR vs {baseline_label}",
+        "comparison": f"RulesRepair vs {baseline_label}",
         "n_seeds": n,
         "wilcoxon_statistic": wilcoxon_stat,
         "wilcoxon_p": p_raw,
@@ -293,7 +293,7 @@ def decision_point_igd_test(seed_table, alpha=0.05, sd_zero_tol=DEFAULT_TOL, bas
         "diff_mean": dz_diag["diff_mean"],
         "diff_sd": dz_diag["diff_sd"],
         "winner": winner,
-        "median_igd_kr": float(seed_table["igd_kr_seed"].median()) if n else None,
+        "median_igd_rulesrepair": float(seed_table["igd_rulesrepair_seed"].median()) if n else None,
         "median_igd_baseline": float(seed_table["igd_baseline_seed"].median()) if n else None,
     }
 
@@ -313,7 +313,7 @@ def print_decision_point_result(dp_label, result, trial_level=False):
         return
     baseline_label = result["comparison"].split(" vs ", 1)[1] if "comparison" in result else "CART"
     print(
-        f"  n_{unit}={n}  median IGD+ KR={result['median_igd_kr']:.4f}  "
+        f"  n_{unit}={n}  median IGD+ RulesRepair={result['median_igd_rulesrepair']:.4f}  "
         f"median IGD+ {baseline_label}={result['median_igd_baseline']:.4f}"
     )
     if result["wilcoxon_p"] is None:
@@ -337,8 +337,8 @@ def print_decision_point_result(dp_label, result, trial_level=False):
 
 
 def decision_point_igd_test_trial_level(trial_table, alpha=0.05, sd_zero_tol=DEFAULT_TOL, baseline_label="CART"):
-    trial_table = trial_table.dropna(subset=["igd_kr_trial", "igd_baseline_trial"])
-    diffs = (trial_table["igd_baseline_trial"] - trial_table["igd_kr_trial"]).tolist()
+    trial_table = trial_table.dropna(subset=["igd_rulesrepair_trial", "igd_baseline_trial"])
+    diffs = (trial_table["igd_baseline_trial"] - trial_table["igd_rulesrepair_trial"]).tolist()
     n = len(diffs)
 
     wilcoxon_stat, p_raw = None, None
@@ -353,12 +353,12 @@ def decision_point_igd_test_trial_level(trial_table, alpha=0.05, sd_zero_tol=DEF
     dz_diag = cohens_d_z_diagnostics(diffs, sd_zero_tol=sd_zero_tol)
 
     if p_holm is not None and p_holm < alpha and hl_estimate is not None:
-        winner = "KR" if hl_estimate > 0 else baseline_label
+        winner = "RulesRepair" if hl_estimate > 0 else baseline_label
     else:
         winner = "no significant difference"
 
     return {
-        "comparison": f"KR vs {baseline_label}",
+        "comparison": f"RulesRepair vs {baseline_label}",
         "unit": "trial",
         "n_trials": n,
         "wilcoxon_statistic": wilcoxon_stat,
@@ -374,7 +374,7 @@ def decision_point_igd_test_trial_level(trial_table, alpha=0.05, sd_zero_tol=DEF
         "diff_mean": dz_diag["diff_mean"],
         "diff_sd": dz_diag["diff_sd"],
         "winner": winner,
-        "median_igd_kr": float(trial_table["igd_kr_trial"].median()) if n else None,
+        "median_igd_rulesrepair": float(trial_table["igd_rulesrepair_trial"].median()) if n else None,
         "median_igd_baseline": float(trial_table["igd_baseline_trial"].median()) if n else None,
     }
 

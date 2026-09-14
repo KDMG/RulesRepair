@@ -12,7 +12,7 @@ from mpl_toolkits.mplot3d import Axes3D
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
-from analysis.core.compare_kr_cart_dominance import (
+from analysis.core.compare_rulesrepair_cart_dominance import (
     DEFAULT_MAX_DEPTH,
     DEFAULT_NODES_MIN,
     DEFAULT_TOL,
@@ -43,16 +43,16 @@ def seed_attainment_matrix(trial_sets, z_grid, tol=DEFAULT_TOL):
     return total / len(trial_sets)
 
 
-def seed_difference_matrix(kr_trial_sets, baseline_trial_sets, z_grid, tol=DEFAULT_TOL):
-    if len(kr_trial_sets) != len(baseline_trial_sets):
+def seed_difference_matrix(rulesrepair_trial_sets, baseline_trial_sets, z_grid, tol=DEFAULT_TOL):
+    if len(rulesrepair_trial_sets) != len(baseline_trial_sets):
         raise ValueError(
-            f"kr_trial_sets ({len(kr_trial_sets)}) and baseline_trial_sets ({len(baseline_trial_sets)}) "
+            f"rulesrepair_trial_sets ({len(rulesrepair_trial_sets)}) and baseline_trial_sets ({len(baseline_trial_sets)}) "
             f"must have the same length -- one paired entry per trial of this seed's view, both from the "
             f"SAME trial (see module docstring: paired means paired at the trial level)."
         )
-    a_kr = seed_attainment_matrix(kr_trial_sets, z_grid, tol=tol)
+    a_rulesrepair = seed_attainment_matrix(rulesrepair_trial_sets, z_grid, tol=tol)
     a_baseline = seed_attainment_matrix(baseline_trial_sets, z_grid, tol=tol)
-    return a_kr - a_baseline
+    return a_rulesrepair - a_baseline
 
 
 def attainment_difference(per_seed_trials, z_grid, tol=DEFAULT_TOL):
@@ -69,9 +69,9 @@ def attainment_difference(per_seed_trials, z_grid, tol=DEFAULT_TOL):
                 f"view does not contribute to the D(z) average at all, per Step 4 of the design; see that "
                 f"function's docstring)."
             )
-        kr_sets = [t[0] for t in trials]
+        rulesrepair_sets = [t[0] for t in trials]
         baseline_sets = [[t[1]] for t in trials]
-        total += seed_difference_matrix(kr_sets, baseline_sets, z, tol=tol)
+        total += seed_difference_matrix(rulesrepair_sets, baseline_sets, z, tol=tol)
     return total / len(seeds), len(seeds)
 
 
@@ -116,8 +116,8 @@ def build_per_seed_trials_by_mutation_type(csv_paths, mutation_types=MUTATION_TY
 def observed_breakpoints(per_seed_trials):
     all_points = []
     for trials in per_seed_trials.values():
-        for kr_front, baseline_point in trials:
-            all_points.extend(kr_front)
+        for rulesrepair_front, baseline_point in trials:
+            all_points.extend(rulesrepair_front)
             all_points.append(baseline_point)
     if not all_points:
         return np.array([]), np.array([]), np.array([])
@@ -149,7 +149,7 @@ def attainment_components(per_seed_trials, z_grid, tol=DEFAULT_TOL):
     seeds = list(per_seed_trials.keys())
     if not seeds:
         return np.full(len(z), np.nan), np.full(len(z), np.nan), 0
-    total_kr = np.zeros(len(z), dtype=float)
+    total_rulesrepair = np.zeros(len(z), dtype=float)
     total_baseline = np.zeros(len(z), dtype=float)
     for seed, trials in per_seed_trials.items():
         if not trials:
@@ -157,21 +157,21 @@ def attainment_components(per_seed_trials, z_grid, tol=DEFAULT_TOL):
                 f"seed {seed} has an empty trial list -- build_per_seed_trials() must OMIT zero-trial "
                 f"seeds entirely (see attainment_difference()'s identical check)."
             )
-        kr_sets = [t[0] for t in trials]
+        rulesrepair_sets = [t[0] for t in trials]
         baseline_sets = [[t[1]] for t in trials]
-        total_kr += seed_attainment_matrix(kr_sets, z, tol=tol)
+        total_rulesrepair += seed_attainment_matrix(rulesrepair_sets, z, tol=tol)
         total_baseline += seed_attainment_matrix(baseline_sets, z, tol=tol)
-    return total_kr / len(seeds), total_baseline / len(seeds), len(seeds)
+    return total_rulesrepair / len(seeds), total_baseline / len(seeds), len(seeds)
 
 
 def compute_attainment_components_field(per_seed_trials, tol=DEFAULT_TOL):
     grid, acc_values, nodes_values, jaccard_values = build_breakpoint_grid(per_seed_trials)
     if len(grid) == 0:
-        return pd.DataFrame(columns=["acc", "nodes", "jaccard", "A_KR", "A_baseline", "D", "n_seeds"])
-    a_kr, a_baseline, n_seeds = attainment_components(per_seed_trials, grid, tol=tol)
+        return pd.DataFrame(columns=["acc", "nodes", "jaccard", "A_RulesRepair", "A_baseline", "D", "n_seeds"])
+    a_rulesrepair, a_baseline, n_seeds = attainment_components(per_seed_trials, grid, tol=tol)
     return pd.DataFrame({
         "acc": grid[:, 0], "nodes": grid[:, 1], "jaccard": grid[:, 2],
-        "A_KR": a_kr, "A_baseline": a_baseline, "D": a_kr - a_baseline, "n_seeds": n_seeds,
+        "A_RulesRepair": a_rulesrepair, "A_baseline": a_baseline, "D": a_rulesrepair - a_baseline, "n_seeds": n_seeds,
     })
 
 
@@ -201,19 +201,19 @@ def build_moocore_input(per_seed_points):
     return np.asarray(rows, dtype=float)
 
 
-def eafdiff_maximise_crosscheck(kr_per_seed_points, baseline_per_seed_points, tol=DEFAULT_TOL):
+def eafdiff_maximise_crosscheck(rulesrepair_per_seed_points, baseline_per_seed_points, tol=DEFAULT_TOL):
     import moocore
 
-    kr_seeds = set(kr_per_seed_points.keys())
+    rulesrepair_seeds = set(rulesrepair_per_seed_points.keys())
     baseline_seeds = set(baseline_per_seed_points.keys())
-    if kr_seeds != baseline_seeds:
+    if rulesrepair_seeds != baseline_seeds:
         raise ValueError(
-            f"Unbalanced design: KR seeds {sorted(kr_seeds)} != baseline seeds {sorted(baseline_seeds)} -- "
+            f"Unbalanced design: RulesRepair seeds {sorted(rulesrepair_seeds)} != baseline seeds {sorted(baseline_seeds)} -- "
             f"this cross-check requires the SAME seed set (paired, one set per seed) on both sides."
         )
-    n_seeds = len(kr_seeds)
+    n_seeds = len(rulesrepair_seeds)
 
-    x = build_moocore_input(kr_per_seed_points)
+    x = build_moocore_input(rulesrepair_per_seed_points)
     y = build_moocore_input(baseline_per_seed_points)
     diff = moocore.eafdiff(x, y, maximise=True, intervals=None)
     transition_points = diff[:, :-1]
@@ -221,8 +221,8 @@ def eafdiff_maximise_crosscheck(kr_per_seed_points, baseline_per_seed_points, to
     moocore_D = moocore_raw / n_seeds
 
     per_seed_trials = {
-        seed: [(list(np.atleast_2d(kr_per_seed_points[seed])), tuple(np.atleast_2d(baseline_per_seed_points[seed])[0]))]
-        for seed in kr_seeds
+        seed: [(list(np.atleast_2d(rulesrepair_per_seed_points[seed])), tuple(np.atleast_2d(baseline_per_seed_points[seed])[0]))]
+        for seed in rulesrepair_seeds
     }
     our_D, our_n_seeds = attainment_difference(per_seed_trials, transition_points, tol=tol)
     if our_n_seeds != n_seeds:
@@ -264,7 +264,7 @@ AXIS_LABELS = {
 
 COLOR_RANGE = 1.0
 
-COLORBAR_LABEL = r"$D(z) = \mathrm{EAF}_{KR}(z) - \mathrm{EAF}_{baseline}(z)$"
+COLORBAR_LABEL = r"$D(z) = \mathrm{EAF}_{RulesRepair}(z) - \mathrm{EAF}_{baseline}(z)$"
 
 DEFAULT_SLICE_PERCENTILES = (25, 50, 75)
 DEFAULT_SLICE_LABELS = ("Low", "Medium", "High")
@@ -413,10 +413,10 @@ def plot_eaf_accuracy_slices_figure(
     y_edges_base = _cell_edges(jaccard_values)
 
     HI = 1.0
-    kr_label, kr_usetex = _smallcaps(RULESREPAIR_LABEL)
+    rulesrepair_label, rulesrepair_usetex = _smallcaps(RULESREPAIR_LABEL)
     baseline_label_sc, baseline_usetex = _smallcaps(baseline_label)
     row_specs = [
-        ("A_KR", BASELINE_EAF_CMAP, 0.0, 1.0),
+        ("A_RulesRepair", BASELINE_EAF_CMAP, 0.0, 1.0),
         ("A_baseline", EAF_VALUE_CMAP, 0.0, 1.0),
     ]
     n_rows = len(row_specs)
@@ -426,7 +426,7 @@ def plot_eaf_accuracy_slices_figure(
         gridspec_kw={"wspace": 0.25, "hspace": 0.35},
     )
 
-    mesh_kr = None
+    mesh_rulesrepair = None
     mesh_baseline = None
     for col_idx, (acc_v, label) in enumerate(zip(slice_values, slice_labels)):
         sub = components_field_df[np.isclose(components_field_df["acc"].to_numpy(), acc_v, atol=1e-9)]
@@ -447,8 +447,8 @@ def plot_eaf_accuracy_slices_figure(
 
             ax = axes[row_idx][col_idx]
             mesh = ax.pcolormesh(x_edges, y_edges, g, cmap=cmap, vmin=vmin, vmax=vmax, shading="flat")
-            if value_col == "A_KR":
-                mesh_kr = mesh
+            if value_col == "A_RulesRepair":
+                mesh_rulesrepair = mesh
             else:
                 mesh_baseline = mesh
             ax.set_xlim(0, 1)
@@ -463,15 +463,15 @@ def plot_eaf_accuracy_slices_figure(
     fig.subplots_adjust(bottom=0.08)
     fig.text(0.5, 0.0, AXIS_LABELS["nodes"], ha="center", va="top", fontsize=AXIS_LABEL_FONTSIZE)
 
-    cbar_kr = fig.colorbar(
-        mesh_kr, ax=[axes[0][c] for c in range(n_cols)], shrink=0.8, pad=0.02,
-        label=rf"{kr_label} EAF(z)" if not kr_usetex else rf"\textsc{{{RULESREPAIR_LABEL}}} EAF(z)",
+    cbar_rulesrepair = fig.colorbar(
+        mesh_rulesrepair, ax=[axes[0][c] for c in range(n_cols)], shrink=0.8, pad=0.02,
+        label=rf"{rulesrepair_label} EAF(z)" if not rulesrepair_usetex else rf"\textsc{{{RULESREPAIR_LABEL}}} EAF(z)",
     )
     cbar_baseline_label = f"{baseline_label} EAF(z)" if not baseline_usetex else rf"\textsc{{{baseline_label}}} EAF(z)"
     cbar_baseline = fig.colorbar(
         mesh_baseline, ax=[axes[1][c] for c in range(n_cols)], shrink=0.8, pad=0.02, label=cbar_baseline_label,
     )
-    for cbar in (cbar_kr, cbar_baseline):
+    for cbar in (cbar_rulesrepair, cbar_baseline):
         cbar.ax.yaxis.label.set_size(COLORBAR_LABEL_FONTSIZE)
         cbar.ax.tick_params(labelsize=COLORBAR_TICK_LABELSIZE)
     return fig
@@ -553,7 +553,7 @@ def plot_eaf_slicing_figure(
     )
 
     panel_specs = [
-        ("A_KR", "KR EAF", EAF_VALUE_CMAP, 0.0, 1.0),
+        ("A_RulesRepair", "RulesRepair EAF", EAF_VALUE_CMAP, 0.0, 1.0),
         ("A_baseline", "Baseline EAF", EAF_VALUE_CMAP, 0.0, 1.0),
         ("D", "EAF difference", "RdBu_r", -COLOR_RANGE, COLOR_RANGE),
     ]
@@ -610,34 +610,34 @@ def plot_eaf_mip_figure(
         .reindex(index=j_vals, columns=i_vals)
         .to_numpy()
     )
-    kr_favoring = np.clip(max_d, 0.0, None)
+    rulesrepair_favoring = np.clip(max_d, 0.0, None)
     baseline_favoring = np.clip(-min_d, 0.0, None)
 
     x_edges = _cell_edges(i_vals)
     y_edges = _cell_edges(j_vals)
     if x_edges[-1] < HI:
         x_edges = np.append(x_edges, HI)
-        kr_favoring = np.concatenate([kr_favoring, np.zeros((kr_favoring.shape[0], 1))], axis=1)
+        rulesrepair_favoring = np.concatenate([rulesrepair_favoring, np.zeros((rulesrepair_favoring.shape[0], 1))], axis=1)
         baseline_favoring = np.concatenate([baseline_favoring, np.zeros((baseline_favoring.shape[0], 1))], axis=1)
     if y_edges[-1] < HI:
         y_edges = np.append(y_edges, HI)
-        kr_favoring = np.concatenate([kr_favoring, np.zeros((1, kr_favoring.shape[1]))], axis=0)
+        rulesrepair_favoring = np.concatenate([rulesrepair_favoring, np.zeros((1, rulesrepair_favoring.shape[1]))], axis=0)
         baseline_favoring = np.concatenate([baseline_favoring, np.zeros((1, baseline_favoring.shape[1]))], axis=0)
 
-    fig, (ax_kr, ax_base) = plt.subplots(1, 2, figsize=(panel_size[0] * 2, panel_size[1]))
-    m1 = ax_kr.pcolormesh(x_edges, y_edges, kr_favoring, cmap="Reds", vmin=0.0, vmax=1.0, shading="flat")
+    fig, (ax_rulesrepair, ax_base) = plt.subplots(1, 2, figsize=(panel_size[0] * 2, panel_size[1]))
+    m1 = ax_rulesrepair.pcolormesh(x_edges, y_edges, rulesrepair_favoring, cmap="Reds", vmin=0.0, vmax=1.0, shading="flat")
     m2 = ax_base.pcolormesh(x_edges, y_edges, baseline_favoring, cmap="Blues", vmin=0.0, vmax=1.0, shading="flat")
 
-    for ax, title in ((ax_kr, "KR − baseline (MIP)"), (ax_base, "Baseline − KR (MIP)")):
+    for ax, title in ((ax_rulesrepair, "RulesRepair − baseline (MIP)"), (ax_base, "Baseline − RulesRepair (MIP)")):
         ax.set_xlim(0, 1)
         ax.set_ylim(0, 1)
         ax.set_aspect("equal")
         ax.set_xlabel(AXIS_LABELS[i_axis], fontsize=10)
         ax.set_title(title, fontsize=10)
         ax.tick_params(labelsize=8)
-    ax_kr.set_ylabel(AXIS_LABELS[j_axis], fontsize=10)
+    ax_rulesrepair.set_ylabel(AXIS_LABELS[j_axis], fontsize=10)
 
-    fig.colorbar(m1, ax=ax_kr, shrink=0.85, pad=0.02, label="max(D, 0)")
+    fig.colorbar(m1, ax=ax_rulesrepair, shrink=0.85, pad=0.02, label="max(D, 0)")
     fig.colorbar(m2, ax=ax_base, shrink=0.85, pad=0.02, label="max(−D, 0)")
     return fig
 

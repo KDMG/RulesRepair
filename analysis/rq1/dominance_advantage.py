@@ -4,7 +4,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from analysis.core.compare_kr_cart_dominance import DEFAULT_TOL, DEFAULT_MAX_DEPTH, _dominates
+from analysis.core.compare_rulesrepair_cart_dominance import DEFAULT_TOL, DEFAULT_MAX_DEPTH, _dominates
 from analysis.rq1._common import (
     infer_dataset, _expand_and_label_paths,
     OPERATOR_ORDER, OPERATOR_DISPLAY_NAMES, DATASET_DISPLAY_NAMES, _dataset_display,

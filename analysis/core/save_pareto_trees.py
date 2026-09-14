@@ -97,7 +97,7 @@ def save_pareto_trees(normative_model_path, dp, manifest_path, pareto_csv, out_p
             "pct_reaudit_cart": pct_reaudit_cart,
         }
 
-        kr_cache = {}
+        rulesrepair_cache = {}
 
         for _, row in group.iterrows():
             w_simp, w_simi, t = row["w_simp"], row["w_simi"], row["t"]
@@ -107,7 +107,7 @@ def save_pareto_trees(normative_model_path, dp, manifest_path, pareto_csv, out_p
                 X_adapt, y_adapt, old_tree=trial_old_tree,
                 w_simp=w_simp, w_simi=w_simi, t=t, positive_class=positive_class,
                 max_depth=max_depth, grow_func=keep_remine_prune_alg.sklearn_grow_func,
-                cache=kr_cache,
+                cache=rulesrepair_cache,
             )
 
             pred_new_adapt = predict(new_tree, X_adapt)
