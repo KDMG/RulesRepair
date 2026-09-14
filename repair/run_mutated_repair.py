@@ -561,51 +561,27 @@ def main():
     parser.add_argument("--split-method", choices=["positional", "random", "case_chronological"], default="case_chronological")
     parser.add_argument("--split-seed", type=int, default=0)
     parser.add_argument(
-        "--operators", default=None,
-        help="Comma-separated subset of prune,change_label,branch_swap,change_threshold,"
-             "change_feature,regrow_leaf,regrow_internal (default: all 7).",
+        "--operators", default=None
     )
     parser.add_argument("--w-simps", default="0.0,0.001,0.005,0.01,0.02,0.05,0.1,0.2,0.3,0.5,0.75,1.0,1.5,2.0,3.0,5.0", help="Comma-separated list of w_simp values to sweep. Normalized scale (complexity term divided by nodes_max=2**(max_depth+1)-1). Extra resolution below 0.02 since some hospital_billing dps collapse to a trivial 1-node tree already at the first coarser nonzero value.")
     parser.add_argument("--w-simis", default="0.0,0.001,0.005,0.01,0.02,0.05,0.1,0.2,0.3,0.5,0.75,1.0,1.5", help="Comma-separated list of w_simi values to sweep. Normalized scale (audit term divided by nodes_max). Narrower top end than --w-simps: w_simi saturates by ~0.5-1 in every decision point checked.")
     parser.add_argument("--max-depth", type=int, default=4)
-    parser.add_argument("--p", type=float, default=DEFAULT_P, help="Fraction of compatible nodes to target per operator, ceil-rounded ('at least p%%'), default 0.2.")
-    parser.add_argument("--degradation-threshold", type=float, default=DEFAULT_DEGRADATION_THRESHOLD, help="Minimum plain-accuracy drop (vs the TRUE unmutated T_old, on the test split) required to accept a mutation, default 0.2.")
-    parser.add_argument("--seed", type=int, default=0, help="Single global seed for all mutation sampling/randomization (node visit order, label/threshold/feature choices, regrow subtrees) -- for full reproducibility.")
-    parser.add_argument("--n-thresholds", type=int, default=10, help="Number of n-tiles per feature in the threshold pool (computed from --data-csv, i.e. the train split -- 10 = deciles).")
-    parser.add_argument("--max-regrow-attempts", type=int, default=DEFAULT_MAX_REGROW_ATTEMPTS, help="regrow has no finite alternative enumeration -- max random attempts per node before giving up on it.")
+    parser.add_argument("--p", type=float, default=DEFAULT_P, help="Fraction of compatible nodes to target per operator, default 0.2.")
+    parser.add_argument("--degradation-threshold", type=float, default=DEFAULT_DEGRADATION_THRESHOLD, help="Minimum accuracy drop, default 0.2.")
+    parser.add_argument("--seed", type=int, default=0, help="Single global seed for all mutation.")
+    parser.add_argument("--n-thresholds", type=int, default=10, help="Number per feature.")
+    parser.add_argument("--max-regrow-attempts", type=int, default=DEFAULT_MAX_REGROW_ATTEMPTS, help="max random attempts per node before giving up on it.")
     parser.add_argument("--regrow-max-depth", type=int, default=DEFAULT_REGROW_MAX_DEPTH)
     parser.add_argument("--regrow-split-prob", type=float, default=DEFAULT_REGROW_SPLIT_PROB)
     parser.add_argument(
-        "--max-alternatives-per-node", type=int, default=DEFAULT_MAX_ALTERNATIVES_PER_NODE,
-        help="2026 addition, default 100. Caps how many alternatives change_threshold/"
-             "change_feature try per node before giving up on it (a random subsample of the "
-             "shuffled alternative list, not a biased truncation). change_feature in particular "
-             "can otherwise enumerate (n_columns-1)*n_thresholds candidates per node, each "
-             "requiring a tree deepcopy and a full accuracy pass over D_adapt, which on datasets "
-             "with many one-hot columns and/or large D_adapt can take hours per decision point. "
-             "Pass a very large value (e.g. 999999) for unchanged exhaustive behaviour. "
-             "Does not affect prune/change_label (already tiny, bounded by len(classes)), "
-             "branch_swap (1 alternative), or regrow (already capped by --max-regrow-attempts).",
+        "--max-alternatives-per-node", type=int, default=DEFAULT_MAX_ALTERNATIVES_PER_NODE
     )
     parser.add_argument(
-        "--fixed", action=argparse.BooleanOptionalAction, default=False,
-        help="'Expert forces keep' experiment: mutant generation is completely unchanged (same "
-             "seed -> same mutants). For EACH accepted mutant, instead of one w_simp/w_simi sweep, "
-             "run one full sweep PER root-to-leaf path of that mutant, with that path's nodes "
-             "forced to keep, never regrown. results.csv/trees.pkl gain a fixed_leaf_id "
-             "column/field and trial_id is suffixed with the protected leaf's id. Point --out-dir "
-             "at a separate directory (e.g. mutated_fixed/) -- this flag does not rename it.",
+        "--fixed", action=argparse.BooleanOptionalAction, default=False
     )
     parser.add_argument("--out-dir", required=True)
     parser.add_argument(
-        "--baseline-tree-cache-dir", default=None,
-        help="2026 addition: directory to cache the once-per-dp CART/CART-entropy/C4.5/"
-             "J48(bounded+unbounded)/REPTree fits in (one <dp>.pkl per decision point). "
-             "These fits depend only on --data-csv/--split-seed, never on --seed -- when "
-             "sweeping many --seed values for the SAME dp (run_repair_all_seeds.py), pass the "
-             "SAME cache dir to every seed so only the first seed actually fits them and every "
-             "later seed reuses the cached result instead of refitting. Omit for standalone runs "
-             "(no caching, identical to the pre-2026 behaviour).",
+        "--baseline-tree-cache-dir", default=None
     )
     args = parser.parse_args()
 

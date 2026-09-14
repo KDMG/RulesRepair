@@ -46,12 +46,6 @@ def run_baseline_repair(
     save_pareto_trees=False,
     fixed=False,
 ):
-    # fixed: 2026 addition, "expert forces keep" experiment (confirmed with
-    # the user, scope = Scenario 0 + Scenario 3 only). Written to a
-    # SEPARATE baseline_fixed/ folder (not baseline/) so this never touches
-    # the existing baseline output -- same seed/split/grid, one repair
-    # sweep per T_old root-to-leaf path instead of one overall (see
-    # run_repair()'s own fixed docstring for the mechanism).
     check_prerequisites(data_csv, normative_model, dp)
 
     out_dir = Path(out_dir)
@@ -86,11 +80,6 @@ def run_baseline_repair(
     }
 
     if save_pareto_trees and fixed:
-        # save_pareto_trees_fn() looks up each pareto-optimal trial_id back
-        # in manifest.jsonl -- under fixed=True, trial_id is suffixed with
-        # _fixedleaf<N> (see run_repair()'s comment) but manifest.jsonl
-        # entries are not, so that lookup would fail. Not supported yet --
-        # explicit error instead of a silent/wrong result.
         raise NotImplementedError(
             "--save-pareto-trees is not supported together with --fixed yet "
             "(manifest.jsonl entries aren't keyed by protected path)."
@@ -109,8 +98,6 @@ def run_baseline_repair(
     return outputs
 
 
-# Backwards-compatible alias (old name, in case any old notebook/script still
-# imports it directly instead of going through run_repair.py).
 run_pipeline = run_baseline_repair
 
 
