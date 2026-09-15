@@ -37,7 +37,7 @@ poetry run python run_pipeline.py --dataset <dataset> --seeds 0,1,2,3,4,5,6,7,8,
 
 Replace `<dataset>` with the desired dataset name, e.g., `sepsis`. The available datasets are listed in the [datasets](https://github.com/KDMG/RulesRepair/tree/main/datasets) folder.
 
-### Output Layout
+#### Output Layout
 
 All files produced by `run_pipeline.py` for a dataset are stored under:
 
@@ -52,6 +52,8 @@ The directory contains:
 * `repair/`: the repair results, by seed.
 
 If the required files already exist in `<dataset>_cut/` and `decision_points/`, `run_pipeline.py` reuses them instead of overwriting them. This also allows the pipeline to be executed with custom inputs. For example, a specific Petri net for a dataset can be placed directly in the corresponding `<dataset>_cut/` directory.
+
+The experimental results reported in our paper are available in the [datasets](https://github.com/KDMG/RulesRepair/tree/main/experiments) folder.
 
 ## Quantitative Evaluation
 
