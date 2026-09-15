@@ -41,11 +41,7 @@ Replace `<dataset>` with the desired dataset name, e.g., `sepsis`. The available
 
 #### Output Layout
 
-All files produced by `run_pipeline.py` for a dataset are stored under:
-
-```text
-experiments/<dataset>/
-```
+All files produced by `run_pipeline.py` for a dataset are stored under `experiments/<dataset>/`
 
 The directory contains:
 
