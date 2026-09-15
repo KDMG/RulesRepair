@@ -7,7 +7,7 @@ Repairing Decision Rules in Data-Aware Process Models
 To run RulesRepair, you need to have installed:
 
 * [Python 3.9](https://www.python.org/downloads/)
-* [Poetry 2.2.1](https://python-poetry.org/docs/#installation), used to install the dependencies specified in `pyproject.toml`. The provided `poetry.lock` was generated with Poetry 2.2.1.
+* [Poetry 2.2.1](https://python-poetry.org/docs/#installation), used to install the dependencies specified in `pyproject.toml`.
 * [Graphviz](https://graphviz.org/download/), required by the `graphviz` Python package to render decision trees.
 * [OpenJDK 8 or later](https://adoptium.net/) (optional), required only for the Weka C4.5/REPTree baselines.
 
