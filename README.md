@@ -117,67 +117,7 @@ The Pareto explorer can be launched with:
 poetry run python pareto_explorer/app.py
 ```
 
-To reproduce the qualitative example reported in Figure 3 of the paper, open the following files from `evaluation/qualitative/` on the first screen:
-
-* **Petri net:** `pn_normative_sepsis.pnml`
-* **Model:** `normative_model_sepsis_p42_change_feature_example.pkl`
-* **Log:** `sepsis_train.xes`
-
-Then select decision point **p_42**.
-
-This reproduces the example reported in the paper, with the following values:
-
-* **Normative:** Accuracy 0.728, Simplicity 0.710
-* **Repaired:** Accuracy 0.968, Simplicity 0.710, Similarity 0.667
-* **CART:** Accuracy 0.956, Simplicity 0.645, Similarity 0.000
-
-These values can be verified against:
-
-```text
-experiments/sepsis/repair/seed_3/p_42/mutated/results.csv
-```
-
-using trial `s3_change_feature_0`.
-
-### Reproducibility Note
-
-The provided `normative_model_sepsis_p42_change_feature_example.pkl` is identical to:
-
-```text
-experiments/sepsis/decision_points/normative_model.pkl
-```
-
-except for the tree associated with decision point `p_42`. Its root split is set to:
-
-```text
-DiagnosticArtAstrup_True <= 0.0
-```
-
-corresponding to the specific `change_feature` mutation used in the paper's qualitative example.
-
-Since Petri-net discovery is not fixed by the experimental seeds, a fresh execution of `run_pipeline.py` may produce a different root split for the same decision point. The provided model therefore fixes the specific mutated tree used in Figure 3, ensuring that the example can be reproduced exactly.
-
-The model can be regenerated with:
-
-```bash
-poetry run python -c "
-import pickle
-from mutations.tree_mutations import apply_change_feature
-
-with open('experiments/sepsis/decision_points/normative_model.pkl', 'rb') as f:
-    model = pickle.load(f)
-
-columns = model['p_42']['columns']
-pos = columns.index('DiagnosticArtAstrup_True')
-apply_change_feature(model['p_42']['tree'], pos, 0.0, columns)
-
-with open(
-    'evaluation/qualitative/normative_model_sepsis_p42_change_feature_example.pkl',
-    'wb'
-) as f:
-    pickle.dump(model, f)
-"
-```
+To reproduce the exact qualitative evaluation of our paper, you find the instruction in [qualitative_readme.txt](https://github.com/KDMG/RulesRepair/tree/main/evaluation/qualitative/qualitative_readme.txt)
 
 ## Contact
 
