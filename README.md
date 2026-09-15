@@ -30,13 +30,13 @@ source $(poetry env info --path)/bin/activate
 
 ## Reproducing the experiments
 
-For reproducing the experiments according to our experimental setup, first launch the repair algorithm for each `<dataset>`, then run the quantitative and qualitative evaluation.
+For reproducing the experiments according to our experimental setup, first launch the repair algorithm for each `dataset`, then run the quantitative and qualitative evaluation.
 
 ### Experiments
 To reproduce the experiments for a dataset, run:
 
 ```bash
-poetry run python run_pipeline.py --dataset `<dataset>` --seeds 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29
+poetry run python run_pipeline.py --dataset <dataset> --seeds 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29
 ```
 
 Replace `<dataset>` with the desired dataset name (see the [datasets](https://github.com/KDMG/RulesRepair/tree/main/datasets) folder).
