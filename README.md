@@ -41,6 +41,16 @@ poetry run python run_pipeline.py --dataset sepsis --seeds 0,1,2,3,4,5,6,7,8,9,1
 
 Replace `sepsis` with the desired dataset name to reproduce the experiments for a different dataset.
 
+### Output layout
+
+Everything `run_pipeline.py` produces for a dataset lives under `experiments/<dataset>/`:
+
+* `<dataset>_cut/` -- the mined Petri net (`pn_normative.pnml`) and the normative/train/test XES splits
+* `decision_points/` -- the extracted decision point tables and `normative_model.pkl` to mutate
+* `repair/` -- the repair results, per seed
+
+If the files in `<dataset>_cut/` and `decision_points/` already exists, `run_pipeline.py` does NOT override.
+
 ### Quantitative evaluation
 
 **Computational time:**
@@ -83,7 +93,7 @@ example (Normative Acc 0.728/Simplicity 0.710, Repaired Acc 0.968/Simplicity
 0.710/Similarity 0.667, CART Acc 0.956/Simplicity 0.645/Similarity 0.000, all
 verified against `experiments/sepsis/repair/seed_3/p_42/mutated/results.csv`,
 trial `s3_change_feature_0`). The model file is the same as the plain
-`decision_points/sepsis/normative_model.pkl` except p_42's tree, whose root
+`experiments/sepsis/decision_points/normative_model.pkl` except p_42's tree, whose root
 split was set to `DiagnosticArtAstrup_True <= 0.0` -- the specific
 `change_feature` mutation the paper's example starts from (Petri net mining
 isn't seed-pinned, so a fresh `run_pipeline.py` run can mine a different root
@@ -93,7 +103,7 @@ needs). Regenerate it with:
 python -c "
 import pickle, copy
 from mutations.tree_mutations import apply_change_feature
-with open('decision_points/sepsis/normative_model.pkl', 'rb') as f:
+with open('experiments/sepsis/decision_points/normative_model.pkl', 'rb') as f:
     model = pickle.load(f)
 columns = model['p_42']['columns']
 pos = columns.index('DiagnosticArtAstrup_True')
