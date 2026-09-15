@@ -39,8 +39,7 @@ class FrontExplorerScreen(QWidget):
         self._selected_marker_a = None
         self._selected_marker_b = None
         self._last_shown_row = None
-        self._baseline_thread = None
-        self._baseline_worker = None
+        self._baseline_threads = []
         self.dark = False
 
         layout = QVBoxLayout(self)
@@ -204,6 +203,7 @@ class FrontExplorerScreen(QWidget):
         self.baseline_combo.blockSignals(True)
         self.baseline_combo.setCurrentIndex(0)
         self.baseline_combo.blockSignals(False)
+        self.baseline_combo.setEnabled(True)
         self.baseline_status.setText("")
         prefix = f"{dataset_name}, " if dataset_name else ""
         self.title_label.setText(f'<span style="font-size:20pt;"><b>{prefix}decision point {_dp_display_html(dp_name)}</b></span>')
@@ -455,28 +455,37 @@ class FrontExplorerScreen(QWidget):
             self.rediscovered_metrics_label.setText(self._metrics_text(None, None, None))
             return
 
-        hint = " (first J48 call starts a JVM -- may take a few seconds)" if prefix == "j48" else ""
-        self.baseline_status.setText(f"Fitting {backend.BASELINE_LABELS[prefix]}...{hint}")
+        self.baseline_status.setText(f"")
         self.baseline_combo.setEnabled(False)
         self.rediscovered_label.clear_pixmap("Fitting...")
 
-        self._baseline_thread = QThread()
-        self._baseline_worker = BaselineWorker(prefix, self.tree_old, self.df_adapt, df_test=self.df_test)
-        self._baseline_worker.moveToThread(self._baseline_thread)
-        self._baseline_thread.started.connect(self._baseline_worker.run)
-        self._baseline_worker.finished.connect(lambda point, p=prefix: self._on_baseline_computed(p, point))
-        self._baseline_worker.failed.connect(self._on_baseline_failed)
-        self._baseline_worker.finished.connect(self._baseline_thread.quit)
-        self._baseline_worker.failed.connect(self._baseline_thread.quit)
-        self._baseline_thread.start()
+        thread = QThread()
+        worker = BaselineWorker(prefix, self.dp_name, self.tree_old, self.df_adapt, df_test=self.df_test)
+        worker.moveToThread(thread)
+        entry = (thread, worker)
+        self._baseline_threads.append(entry)
+        thread.started.connect(worker.run)
+        worker.finished.connect(self._on_baseline_computed)
+        worker.failed.connect(self._on_baseline_failed)
+        worker.finished.connect(thread.quit)
+        worker.failed.connect(thread.quit)
+        worker.finished.connect(worker.deleteLater)
+        worker.failed.connect(worker.deleteLater)
+        thread.finished.connect(thread.deleteLater)
+        thread.finished.connect(lambda e=entry: self._baseline_threads.remove(e) if e in self._baseline_threads else None)
+        thread.start()
 
-    def _on_baseline_computed(self, prefix, point):
+    def _on_baseline_computed(self, prefix, dp_name, point):
+        if dp_name != self.dp_name:
+            return
         self.baseline_points[prefix] = point
         self.baseline_combo.setEnabled(True)
         if prefix == self.baseline_prefix:  # user might have switched again while this was fitting
             self._on_baseline_ready(point)
 
-    def _on_baseline_failed(self, message):
+    def _on_baseline_failed(self, dp_name, message):
+        if dp_name != self.dp_name:
+            return
         self.baseline_combo.setEnabled(True)
         self.baseline_status.setText(f"Could not fit: {message}")
         self.rediscovered_label.clear_pixmap("--")
@@ -484,28 +493,39 @@ class FrontExplorerScreen(QWidget):
 
     def _on_baseline_ready(self, point):
         self.baseline_status.setText("")
-        if point is None:
-            self.rediscovered_label.clear_pixmap("--")
-            self.rediscovered_metrics_label.setText(self._metrics_text(None, None, None))
-        else:
-            changed_ids = backend.find_changed_nodes(self.tree_old, point["tree"]) if self.tree_old is not None else None
-            display_id_map = (
-                backend.display_id_map_for_tree(self.tree_old, point["tree"], id_offset=1000)
-                if self.tree_old is not None else {}
-            )
-            png_stem = TMP_DIR / f"baseline_{self.baseline_prefix}_{self.dp_name}"
-            try:
-                png_path, _ = backend.render_tree_png(
-                    point["tree"], png_stem, dark=self.dark, highlight_change_ids=changed_ids,
-                    display_id_map=display_id_map,
+        try:
+            if point is None:
+                self.rediscovered_label.clear_pixmap("--")
+                self.rediscovered_metrics_label.setText(self._metrics_text(None, None, None))
+            else:
+                try:
+                    changed_ids = (
+                        backend.find_changed_nodes(self.tree_old, point["tree"]) if self.tree_old is not None else None
+                    )
+                    display_id_map = (
+                        backend.display_id_map_for_tree(self.tree_old, point["tree"], id_offset=1000)
+                        if self.tree_old is not None else {}
+                    )
+                except Exception as exc:  # noqa: BLE001
+                    changed_ids = None
+                    display_id_map = {}
+                    print(f"[baseline] could not compare {self.baseline_prefix} tree to the normative tree: {exc!r}", flush=True)
+                png_stem = TMP_DIR / f"baseline_{self.baseline_prefix}_{self.dp_name}"
+                try:
+                    png_path, _ = backend.render_tree_png(
+                        point["tree"], png_stem, dark=self.dark, highlight_change_ids=changed_ids,
+                        display_id_map=display_id_map,
+                    )
+                    self.rediscovered_label.set_full_pixmap(QPixmap(str(png_path)))
+                except Exception as exc:  # noqa: BLE001
+                    self.rediscovered_label.clear_pixmap(f"Could not draw tree:\n{exc}")
+                self.rediscovered_metrics_label.setText(
+                    self._metrics_text(point["accuracy_display"], point["simplicity"], point["jaccard"])
                 )
-                self.rediscovered_label.set_full_pixmap(QPixmap(str(png_path)))
-            except Exception as exc:  # noqa: BLE001
-                self.rediscovered_label.clear_pixmap(f"Could not draw tree:\n{exc}")
-            self.rediscovered_metrics_label.setText(
-                self._metrics_text(point["accuracy_display"], point["simplicity"], point["jaccard"])
-            )
-        self._redraw_scatter()
+            self._redraw_scatter()
+        except Exception as exc:
+            print(f"failed for {self.baseline_prefix}: {exc!r}", flush=True)
+            self.baseline_status.setText(f"Could not display this baseline: {exc}")
 
     def set_dark(self, dark):
         self.dark = dark

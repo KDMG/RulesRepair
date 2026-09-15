@@ -1,3 +1,4 @@
+import os
 import pickle
 import subprocess
 import sys
@@ -44,9 +45,11 @@ def compute_baseline_point(prefix, base_tree, rs_old, df_adapt_raw, df_test_raw=
     ) = builder(df_adapt_raw, df_test_raw if df_test_raw is not None else df_adapt_raw, max_depth, rs_old, old_tree=base_tree)
     if tree is None:
         return None
+    test_accuracy = acc_test if df_test_raw is not None else None
     return {
-        "accuracy": acc_adapt,  # TRAIN/adapt accuracy ("Fitness") -- unchanged semantics/callers
-        "test_accuracy": acc_test if df_test_raw is not None else None,  # 2026 addition, real held-out accuracy
+        "accuracy": acc_adapt,
+        "test_accuracy": test_accuracy,
+        "accuracy_display": test_accuracy if test_accuracy is not None else acc_adapt,
         "simplicity": 1 - total_nodes / nodes_max,
         "jaccard": sim_old_jaccard,
         "tree": tree,
@@ -71,26 +74,28 @@ def compute_baseline_point_for_tree_isolated(prefix, base_tree, df_adapt_raw, df
         with open(input_path, "wb") as f:
             pickle.dump((prefix, base_tree, df_adapt_raw, df_test_raw, max_depth), f)
 
+        print(f"", flush=True)
         try:
             result = subprocess.run(
                 [sys.executable, str(script_path), str(input_path), str(output_path)],
-                cwd=str(REPO_ROOT), timeout=timeout,
+                timeout=timeout,
             )
         except subprocess.TimeoutExpired:
             raise RuntimeError(f"Fitting {label} timed out after {timeout}s.")
 
+        print(f"", flush=True)
+
         if result.returncode != 0:
             raise RuntimeError(
-                f"Fitting {label} crashed the worker process (exit code {result.returncode}) -- this "
-                f"usually means the local Java/JVM used by python-weka-wrapper3 is incompatible "
-                f"(needs Java 9+). The main app was not affected. See the terminal output above "
-                f"for the worker process's own error details."
+                f"Fitting {label} crashed the worker process (exit code {result.returncode})."
             )
 
         if not output_path.exists():
             raise RuntimeError(f"Fitting {label} produced no result.")
+        print(f"", flush=True)
         with open(output_path, "rb") as f:
             status, payload = pickle.load(f)
+        print(f"", flush=True)
 
     if status == "error":
         raise RuntimeError(payload)
@@ -122,7 +127,7 @@ def _find_offline_shared_test(dp_name):
 
 def prepare_normative_base(dp_name, model, observations):
     if model is None:
-        raise MissingDataError("No model loaded -- open a trees (.pkl) file first.")
+        raise MissingDataError("No model loaded.")
     entry = model.get(dp_name)
     if entry is None or entry.get("tree") is None:
         raise MissingDataError(f"'{dp_name}' has no tree in the loaded model.")
@@ -133,7 +138,7 @@ def prepare_normative_base(dp_name, model, observations):
         return entry["tree"], df_adapt
 
     if observations is None:
-        raise MissingDataError("No log loaded -- open a log (.xes) file first.")
+        raise MissingDataError("No log loaded.")
     records = observations.get(dp_name)
     if not records:
         raise MissingDataError(f"The loaded log has zero observations for '{dp_name}'.")

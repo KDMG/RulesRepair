@@ -23,6 +23,7 @@ class PetriNetScreen(QWidget):
         self.observations = None
         self.extract_thread = None
         self.extract_worker = None
+        self._extracting = False
         self.dark = False
         self._current_pnml_path = None
         self._current_log_path = None
@@ -39,7 +40,6 @@ class PetriNetScreen(QWidget):
         title_row.addWidget(self.theme_btn)
         left.addLayout(title_row)
 
-        # --- Input 1: Data Petri net (net + normative decision trees) ---
         data_pn_box = QGroupBox("1. Data Petri net")
         data_pn_layout = QVBoxLayout()
 
@@ -73,7 +73,6 @@ class PetriNetScreen(QWidget):
         data_pn_box.setLayout(data_pn_layout)
         left.addWidget(data_pn_box)
 
-        # --- Input 2: event log ---
         log_box = QGroupBox("2. Event log (.xes)")
         log_layout = QVBoxLayout()
         log_open_btn = QPushButton("Open...")
@@ -95,7 +94,7 @@ class PetriNetScreen(QWidget):
         self.dp_list.itemDoubleClicked.connect(self._open_selected)
         left.addWidget(self.dp_list, stretch=1)
 
-        open_dp_btn = QPushButton("Open ->")
+        open_dp_btn = QPushButton("Open")
         open_dp_btn.clicked.connect(self._open_selected)
         left.addWidget(open_dp_btn)
 
@@ -167,26 +166,31 @@ class PetriNetScreen(QWidget):
 
     def _open_log_file(self):
         if self.net_data is None:
-            QMessageBox.information(self, "Log", "Open a Petri net first (the log is aligned against it).")
+            QMessageBox.information(self, "Log", "Open a Petri net first.")
             return
         path, _ = QFileDialog.getOpenFileName(self, "Open log", str(backend.REPO_ROOT), "Event log (*.xes)")
         if not path:
             return
 
         self.log_progress.setVisible(True)
-        self.log_status.setText("Extracting observations (alignment-based, may take a while)...")
+        self.log_status.setText("Extracting observations instances (alignment-based)...")
+        self._extracting = True
 
         self.extract_thread = QThread()
         self.extract_worker = ExtractWorker(self.net_data, path)
         self.extract_worker.moveToThread(self.extract_thread)
         self.extract_thread.started.connect(self.extract_worker.run)
-        self.extract_worker.finished.connect(lambda obs: self._on_log_finished(path, obs))
+        self.extract_worker.finished.connect(self._on_log_finished)
         self.extract_worker.failed.connect(self._on_log_failed)
         self.extract_worker.finished.connect(self.extract_thread.quit)
         self.extract_worker.failed.connect(self.extract_thread.quit)
+        self.extract_worker.finished.connect(self.extract_worker.deleteLater)
+        self.extract_worker.failed.connect(self.extract_worker.deleteLater)
+        self.extract_thread.finished.connect(self.extract_thread.deleteLater)
         self.extract_thread.start()
 
     def _on_log_finished(self, path, observations):
+        self._extracting = False
         self.observations = observations
         self._current_log_path = path
         self.log_progress.setVisible(False)
@@ -197,6 +201,7 @@ class PetriNetScreen(QWidget):
         )
 
     def _on_log_failed(self, message):
+        self._extracting = False
         self.observations = None
         self.log_progress.setVisible(False)
         self.log_status.setText(f"Could not extract: {message}")
@@ -205,6 +210,9 @@ class PetriNetScreen(QWidget):
     def _open_selected(self):
         if self.net_data is None:
             QMessageBox.information(self, "Decision point", "Open a Petri net first.")
+            return
+        if self._extracting:
+            QMessageBox.information(self, "Decision point", "Still extracting observations from the log.")
             return
         item = self.dp_list.currentItem()
         if item is None:
@@ -223,10 +231,13 @@ class PetriNetScreen(QWidget):
     def _open_dp_by_name(self, dp_name):
         if self.net_data is None or dp_name not in self.net_data["decision_points"]:
             return
+        if self._extracting:
+            QMessageBox.information(self, "Decision point", "Still extracting observations from the log.")
+            return
         if self.model is None:
             QMessageBox.information(
                 self, "Model",
-                "Load a model (.pkl) first (box 2 on the left) before opening a decision point.",
+                "Load a model (.pkl) first.",
             )
             return
         dp_info = self.net_data["decision_points"][dp_name]

@@ -52,7 +52,7 @@ class RuleSelectionScreen(QWidget):
         self.source_label.setWordWrap(True)
         left.addWidget(self.source_label)
 
-        left.addWidget(QLabel("Rules -- select one or more as mandatory:"))
+        left.addWidget(QLabel("Decision rules, select one or more as mandatory:"))
         self.leaf_list = QListWidget()
         self.leaf_list.setSelectionMode(QAbstractItemView.MultiSelection)
         self.leaf_list.itemSelectionChanged.connect(self._render_tree)
@@ -62,7 +62,7 @@ class RuleSelectionScreen(QWidget):
         self.progress.setVisible(False)
         left.addWidget(self.progress)
 
-        self.compute_btn = QPushButton("Compute front ->")
+        self.compute_btn = QPushButton("Compute front")
         self.compute_btn.clicked.connect(self._start_compute)
         left.addWidget(self.compute_btn)
 
@@ -108,7 +108,7 @@ class RuleSelectionScreen(QWidget):
             self._df_adapt = None
             self._df_test = None
             self._base_ready = False
-            source_text = "trained tree (T_old)" if source == "trained" else "guard-only tree (from the Petri net)"
+            source_text = ""
             self.source_label.setText(f"Showing {source_text}. Not computable here: {exc}")
             self.compute_btn.setEnabled(False)
             self.compute_btn.setToolTip(str(exc))
@@ -120,7 +120,7 @@ class RuleSelectionScreen(QWidget):
             self._df_test = pd.read_csv(test_path) if test_path is not None else None
             test_note = f", {len(self._df_test)} held-out test row(s) found" if self._df_test is not None else ""
             self.source_label.setText(
-                f"Trained tree (T_old) -- {len(df_adapt)} observation(s) used as D_adapt{test_note}. Ready to compute."
+                f""
             )
             self.compute_btn.setEnabled(True)
             self.compute_btn.setToolTip("")
@@ -145,7 +145,7 @@ class RuleSelectionScreen(QWidget):
         if selected_ids and not isinstance(self.tree, backend.GuardTree):
             try:
                 path_ids = backend.forced_ids_for_leaves(self.tree, selected_ids)
-            except Exception:  # noqa: BLE001 -- best-effort highlight, never blocks the render itself
+            except Exception:
                 path_ids = None
         png_stem = TMP_DIR / f"tree_{self.dp_name}"
         try:
@@ -158,7 +158,7 @@ class RuleSelectionScreen(QWidget):
 
     def _start_compute(self):
         if not self._base_ready:
-            QMessageBox.warning(self, "Compute", "No usable data for this decision point -- load a model and a log that cover it.")
+            QMessageBox.warning(self, "Compute", "No usable data for this decision point.")
             return
         selected_ids = [item.data(Qt.UserRole) for item in self.leaf_list.selectedItems()]
         self._worker_mandatory_ids = selected_ids  # stashed for _on_finished(), see its own comment
@@ -176,6 +176,9 @@ class RuleSelectionScreen(QWidget):
         self.worker.failed.connect(self._on_failed)
         self.worker.finished.connect(self.thread.quit)
         self.worker.failed.connect(self.thread.quit)
+        self.worker.finished.connect(self.worker.deleteLater)
+        self.worker.failed.connect(self.worker.deleteLater)
+        self.thread.finished.connect(self.thread.deleteLater)
         self.thread.start()
 
     def _on_progress(self, done, total):

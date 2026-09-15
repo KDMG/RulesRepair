@@ -1,6 +1,5 @@
 import argparse
 import ast
-import fcntl
 import json
 import os
 import pickle
@@ -10,6 +9,7 @@ from contextlib import contextmanager
 from pathlib import Path
 
 import pandas as pd
+from filelock import FileLock
 from sklearn.metrics import f1_score, accuracy_score
 from chefboost import Chefboost as chef
 from chefboost.commons import functions as chef_functions
@@ -204,15 +204,13 @@ CHEFBOOST_FIT_LOCK_FILE = CHEFBOOST_SCRATCH_DIR / "chefboost_fit.lock"
 @contextmanager
 def _chefboost_fit_lock():
     CHEFBOOST_SCRATCH_DIR.mkdir(parents=True, exist_ok=True)
-    with open(CHEFBOOST_FIT_LOCK_FILE, "a+") as lock_f:
-        fcntl.flock(lock_f, fcntl.LOCK_EX)
+    with FileLock(str(CHEFBOOST_FIT_LOCK_FILE) + ".lock"):
         prev_cwd = os.getcwd()
         os.chdir(CHEFBOOST_SCRATCH_DIR)
         try:
             yield
         finally:
             os.chdir(prev_cwd)
-            fcntl.flock(lock_f, fcntl.LOCK_UN)
 
 
 def _count_chefboost_nodes(source_text):

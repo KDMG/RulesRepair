@@ -1,7 +1,7 @@
 import graphviz
 
 DEFAULT_DPI = 130
-DECISION_POINT_FILLCOLOR = "#66bb6a"
+DECISION_POINT_FILLCOLOR = "#ffcc66"
 
 
 class GuardTree:
@@ -148,7 +148,6 @@ def _render_petri_net_dot(net, im, fm, decision_point_names=None, dark=False):
     place_id_map = {}
     for p in net.places:
         if p.name in decision_point_names:
-            # black text reads fine on this green on both themes.
             style, fillcolor, fontcolor = "filled", DECISION_POINT_FILLCOLOR, "black"
         elif p in im or p in fm:
             style, fillcolor, fontcolor = "filled", "lightgray", "black"

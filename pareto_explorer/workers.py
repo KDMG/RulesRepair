@@ -3,7 +3,7 @@ from PySide6.QtCore import QObject, Signal
 import backend
 
 class ExtractWorker(QObject):
-    finished = Signal(object)
+    finished = Signal(str, object)
     failed = Signal(str)
 
     def __init__(self, net_data, xes_path):
@@ -14,8 +14,8 @@ class ExtractWorker(QObject):
     def run(self):
         try:
             observations = backend.extract_observations(self.net_data, self.xes_path)
-            self.finished.emit(observations)
-        except Exception as exc:  # noqa: BLE001 -- surfaced to the user
+            self.finished.emit(self.xes_path, observations)
+        except Exception as exc:
             self.failed.emit(str(exc))
 
 
@@ -46,12 +46,13 @@ class ComputeWorker(QObject):
 
 
 class BaselineWorker(QObject):
-    finished = Signal(object)
-    failed = Signal(str)
+    finished = Signal(str, str, object)
+    failed = Signal(str, str)
 
-    def __init__(self, prefix, tree_old, df_adapt, df_test=None):
+    def __init__(self, prefix, dp_name, tree_old, df_adapt, df_test=None):
         super().__init__()
         self.prefix = prefix
+        self.dp_name = dp_name
         self.tree_old = tree_old
         self.df_adapt = df_adapt
         self.df_test = df_test
@@ -59,6 +60,6 @@ class BaselineWorker(QObject):
     def run(self):
         try:
             point = backend.compute_baseline_point_for_tree_isolated(self.prefix, self.tree_old, self.df_adapt, df_test_raw=self.df_test)
-            self.finished.emit(point)
+            self.finished.emit(self.prefix, self.dp_name, point)
         except Exception as exc:
-            self.failed.emit(str(exc))
+            self.failed.emit(self.dp_name, str(exc))

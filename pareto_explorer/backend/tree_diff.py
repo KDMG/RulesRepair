@@ -1,4 +1,4 @@
-from ._paths import REPO_ROOT  # noqa: F401 -- ensures REPO_ROOT is on sys.path
+from ._paths import REPO_ROOT
 from mutations.tree_mutations import get_leaf_nodes, root_to_leaf_paths
 
 from .rendering import GuardTree, _condition_text
@@ -126,7 +126,7 @@ def leaf_choices(tree):
 def forced_ids_for_leaves(tree, leaf_node_ids):
     if not leaf_node_ids:
         return None
-    paths = dict(root_to_leaf_paths(tree))  # leaf_node_id -> frozenset(ancestor ids)
+    paths = dict(root_to_leaf_paths(tree))
     union = set()
     for leaf_id in leaf_node_ids:
         union |= set(paths[leaf_id])

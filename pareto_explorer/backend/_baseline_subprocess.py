@@ -1,10 +1,13 @@
+import os
 import pickle
 import sys
 from pathlib import Path
 
 PARETO_EXPLORER_DIR = Path(__file__).resolve().parent.parent
+REPO_ROOT = PARETO_EXPLORER_DIR.parent
 if str(PARETO_EXPLORER_DIR) not in sys.path:
     sys.path.insert(0, str(PARETO_EXPLORER_DIR))
+os.chdir(str(REPO_ROOT))
 
 from backend.live_repair import compute_baseline_point_for_tree
 
@@ -19,7 +22,7 @@ def main():
             prefix, base_tree, df_adapt_raw, df_test_raw=df_test_raw, max_depth=max_depth,
         )
         payload = ("ok", result)
-    except Exception as exc:  # noqa: BLE001 -- reported back to the parent process, never raised here
+    except Exception as exc:
         payload = ("error", str(exc))
 
     with open(output_path, "wb") as f:

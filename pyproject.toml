@@ -27,6 +27,8 @@ pm4py = "^2.7"
 
 PySide6 = "^6.7"
 
+filelock = "^3.13"
+
 
 [tool.poetry.group.dev.dependencies]
 surround = "0.1.2"

@@ -1,4 +1,5 @@
 import re
+import subprocess
 
 import numpy as np
 
@@ -6,7 +7,23 @@ from keep_remine_prune.tree import Operator
 from mining.binary_tree_from_splits import RawSplit, raw_to_decision_node
 
 _jvm_started = False
-_jvm_unavailable_reason = None  # set once ensure_jvm() fails, so every
+_jvm_unavailable_reason = None
+
+_JAVA_VERSION_RE = re.compile(r'version "(\d+)(?:\.(\d+))?')
+
+
+def _detect_java_major_version():
+    try:
+        result = subprocess.run(["java", "-version"], capture_output=True, text=True, timeout=10)
+    except Exception:
+        return None
+    m = _JAVA_VERSION_RE.search((result.stdout or "") + (result.stderr or ""))
+    if not m:
+        return None
+    major = int(m.group(1))
+    if major == 1 and m.group(2):
+        return int(m.group(2))
+    return major
 
 
 def ensure_jvm():
@@ -15,6 +32,17 @@ def ensure_jvm():
         return
     if _jvm_unavailable_reason is not None:
         raise RuntimeError(_jvm_unavailable_reason)
+
+    java_major = _detect_java_major_version()
+    if java_major is not None and java_major < 9:
+        _jvm_unavailable_reason = (
+            f"Local Java is version {java_major}, but python-weka-wrapper3 requires Java 9 or "
+            f"later -- refusing to start the JVM with it (older JVMs have been seen to crash the "
+            f"whole process natively on this kind of mismatch, instead of failing cleanly). "
+            f"Install a newer JDK (e.g. OpenJDK 17) and make sure it's the one on PATH."
+        )
+        raise RuntimeError(_jvm_unavailable_reason)
+
     try:
         import weka.core.jvm as jvm
         jvm.start()
