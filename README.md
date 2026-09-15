@@ -1,18 +1,15 @@
 # RulesRepair
 
-Repairing Decision Rules in Data-Aware Process Models 
+Repairing Decision Rules in Data-Aware Process Models
 
 ## Requirements
 
-To run our application you need to have installed:
+To run RulesRepair, you need to have installed:
 
 * [Python 3.9](https://www.python.org/downloads/)
-
-* [Poetry 2.2.1](https://python-poetry.org/docs/#installation) (the `poetry.lock` was generated with 2.2.1), to install the dependencies listed in `pyproject.toml`
-
-* [Graphviz](https://graphviz.org/download/), required by the `graphviz` Python package to render trees
-
-* [OpenJDK 8 or later](https://adoptium.net/) optional, only for the Weka C4.5/REPTree
+* [Poetry 2.2.1](https://python-poetry.org/docs/#installation), used to install the dependencies specified in `pyproject.toml`. The provided `poetry.lock` was generated with Poetry 2.2.1.
+* [Graphviz](https://graphviz.org/download/), required by the `graphviz` Python package to render decision trees.
+* [OpenJDK 8 or later](https://adoptium.net/) (optional), required only for the Weka C4.5/REPTree baselines.
 
 ## Installation
 
@@ -24,99 +21,168 @@ cd RulesRepair/
 
 poetry env use python3.9
 poetry install
-# poetry lock if your received an error (you may have a poetry version different from 2.2.1)
-source $(poetry env info --path)/bin/activate
 ```
 
-## Reproducing the experiments
+All commands below are executed through Poetry, so activating the virtual environment is not required.
 
-For reproducing the experiments according to our experimental setup, first launch the repair algorithm for each `dataset`, then run the quantitative and qualitative evaluation.
+## Reproducing the Experiments
 
-### Experiments
-To reproduce the experiments for a dataset, run:
+To reproduce the experiments, first run the experimental pipeline for the desired dataset and then run the quantitative evaluation. The qualitative example reported in the paper can be reproduced separately as described below.
+
+### Running the Experimental Pipeline
+
+To run the experiments for a dataset, execute:
 
 ```bash
 poetry run python run_pipeline.py --dataset <dataset> --seeds 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29
 ```
 
-Replace `<dataset>` with the desired dataset name, e.g., `<dataset>`= `sepsis` (see the [datasets](https://github.com/KDMG/RulesRepair/tree/main/datasets) folder).
+Replace `<dataset>` with the desired dataset name, e.g., `sepsis`. The available datasets are listed in the [datasets](https://github.com/KDMG/RulesRepair/tree/main/datasets) folder.
 
-### Output layout
+### Output Layout
 
-Everything `run_pipeline.py` produces for a dataset lives under `experiments/<dataset>/`:
+All files produced by `run_pipeline.py` for a dataset are stored under:
 
-* `<dataset>_cut/` -- the mined Petri net (`pn_normative.pnml`) and the normative/train/test XES splits
-* `decision_points/` -- the extracted decision point tables and `normative_model.pkl` to mutate
-* `repair/` -- the repair results, per seed
-
-If the files in `<dataset>_cut/` and `decision_points/` already exists, `run_pipeline.py` does NOT override.
-
-### Quantitative evaluation
-
-**Computational time:**
-```bash
-python -m analysis.core.computational_time experiments/<dataset>/repair/seed_*/*/mutated/results.csv
+```text
+experiments/<dataset>/
 ```
-Prints and saves, under `evaluation/quantitative/timing/`, the mean/median/std training time per algorithm (RulesRepair and every baseline), broken down overall, by mutation type, and by decision point.
 
-**RQ1 (dominance over the baselines):**
+The directory contains:
+
+* `<dataset>_cut/` — the mined Petri net (`pn_normative.pnml`) and the normative, training, and test XES splits;
+* `decision_points/` — the extracted decision-point tables and `normative_model.pkl`, used to generate the mutations;
+* `repair/` — the repair results, organized by seed.
+
+If the required files already exist in `<dataset>_cut/` and `decision_points/`, `run_pipeline.py` reuses them instead of overwriting them. This also allows the pipeline to be executed with custom inputs. For example, a specific Petri net for a dataset can be placed directly in the corresponding `<dataset>_cut/` directory.
+
+## Quantitative Evaluation
+
+The following commands reproduce the quantitative analyses reported in the paper.
+
+### Computational Time
+
 ```bash
-python -m analysis.rq1 cart-summary experiments/<dataset>/repair/seed_*/*/mutated/analysis/pareto_per_trial.csv \
-    -out-csv evaluation/quantitative/rq1/summary_<dataset>.csv
+poetry run python -m analysis.core.computational_time \
+    experiments/<dataset>/repair/seed_*/*/mutated/results.csv
+```
 
-python -m analysis.rq1 dominance-advantage experiments/<dataset>/repair/seed_*/*/mutated/analysis/pareto_per_trial.csv \
+The command reports the mean, median, and standard deviation of the training time for RulesRepair and each baseline. Results are provided overall, by mutation type, and by decision point, and are saved under:
+
+```text
+evaluation/quantitative/timing/
+```
+
+### RQ1 — Dominance over the Baselines
+
+Run:
+
+```bash
+poetry run python -m analysis.rq1 cart-summary \
+    experiments/<dataset>/repair/seed_*/*/mutated/analysis/pareto_per_trial.csv \
+    -out-csv evaluation/quantitative/rq1/summary_<dataset>.csv
+```
+
+and:
+
+```bash
+poetry run python -m analysis.rq1 dominance-advantage \
+    experiments/<dataset>/repair/seed_*/*/mutated/analysis/pareto_per_trial.csv \
     --group-summary-out evaluation/quantitative/rq1/group_summary_<dataset>.csv \
     --mutation-summary-out evaluation/quantitative/rq1/mutation_summary_<dataset>.csv
 ```
-Both give results broken down by decision point and by mutation type as well as aggregated.
 
-**RQ2 (statistical significance vs. the baselines):**
+Both commands report results overall and broken down by decision point and mutation type.
+
+### RQ2 — Statistical Significance against the Baselines
+
+Run:
+
 ```bash
-python -m analysis.rq2.statistical rq-table experiments/<dataset>/repair/seed_*/*/mutated/analysis/pareto_per_trial.csv \
-    --dataset <dataset> --trial-level --out-dir evaluation/quantitative/rq2
+poetry run python -m analysis.rq2.statistical rq-table \
+    experiments/<dataset>/repair/seed_*/*/mutated/analysis/pareto_per_trial.csv \
+    --dataset <dataset> \
+    --trial-level \
+    --out-dir evaluation/quantitative/rq2
 ```
-Writes one table per decision point with an "overall" row plus one row per mutation type. Add `--by-dataset` for a version pooled into one row per dataset instead.
 
-### Qualitative evaluation
-You can inspect the Pareto explorer by running
+The command generates one table per decision point, containing an `overall` row and one row for each mutation type.
+
+To obtain results pooled into one row per dataset, add the `--by-dataset` option.
+
+## Qualitative Evaluation
+
+The Pareto explorer can be launched with:
+
 ```bash
-python pareto_explorer/app.py
+poetry run python pareto_explorer/app.py
 ```
-On screen 1, open the three files in `evaluation/qualitative/`:
 
-* Petri net: `pn_normative_sepsis.pnml`
-* Model: `normative_model_sepsis_p42_change_feature_example.pkl`
-* Log: `sepsis_train.xes`
+To reproduce the qualitative example reported in Figure 3 of the paper, open the following files from `evaluation/qualitative/` on the first screen:
 
-then click decision point **p_42**. This exactly reproduces the paper's Figure 3
-example (Normative Acc 0.728/Simplicity 0.710, Repaired Acc 0.968/Simplicity
-0.710/Similarity 0.667, CART Acc 0.956/Simplicity 0.645/Similarity 0.000, all
-verified against `experiments/sepsis/repair/seed_3/p_42/mutated/results.csv`,
-trial `s3_change_feature_0`). The model file is the same as the plain
-`experiments/sepsis/decision_points/normative_model.pkl` except p_42's tree, whose root
-split was set to `DiagnosticArtAstrup_True <= 0.0` -- the specific
-`change_feature` mutation the paper's example starts from (Petri net mining
-isn't seed-pinned, so a fresh `run_pipeline.py` run can mine a different root
-split for the same decision-point name; this file freezes the one the figure
-needs). Regenerate it with:
+* **Petri net:** `pn_normative_sepsis.pnml`
+* **Model:** `normative_model_sepsis_p42_change_feature_example.pkl`
+* **Log:** `sepsis_train.xes`
+
+Then select decision point **p_42**.
+
+This reproduces the example reported in the paper, with the following values:
+
+* **Normative:** Accuracy 0.728, Simplicity 0.710
+* **Repaired:** Accuracy 0.968, Simplicity 0.710, Similarity 0.667
+* **CART:** Accuracy 0.956, Simplicity 0.645, Similarity 0.000
+
+These values can be verified against:
+
+```text
+experiments/sepsis/repair/seed_3/p_42/mutated/results.csv
+```
+
+using trial `s3_change_feature_0`.
+
+### Reproducibility Note
+
+The provided `normative_model_sepsis_p42_change_feature_example.pkl` is identical to:
+
+```text
+experiments/sepsis/decision_points/normative_model.pkl
+```
+
+except for the tree associated with decision point `p_42`. Its root split is set to:
+
+```text
+DiagnosticArtAstrup_True <= 0.0
+```
+
+corresponding to the specific `change_feature` mutation used in the paper's qualitative example.
+
+Since Petri-net discovery is not fixed by the experimental seeds, a fresh execution of `run_pipeline.py` may produce a different root split for the same decision point. The provided model therefore fixes the specific mutated tree used in Figure 3, ensuring that the example can be reproduced exactly.
+
+The model can be regenerated with:
+
 ```bash
-python -c "
-import pickle, copy
+poetry run python -c "
+import pickle
 from mutations.tree_mutations import apply_change_feature
+
 with open('experiments/sepsis/decision_points/normative_model.pkl', 'rb') as f:
     model = pickle.load(f)
+
 columns = model['p_42']['columns']
 pos = columns.index('DiagnosticArtAstrup_True')
 apply_change_feature(model['p_42']['tree'], pos, 0.0, columns)
-with open('evaluation/qualitative/normative_model_sepsis_p42_change_feature_example.pkl', 'wb') as f:
+
+with open(
+    'evaluation/qualitative/normative_model_sepsis_p42_change_feature_example.pkl',
+    'wb'
+) as f:
     pickle.dump(model, f)
 "
 ```
 
 ## Contact
 
-For any information, please contact:
+For questions or further information, please contact:
 
-| Contributor name | Contacts |
-| :-------- | :------- |
-| `Chiara Gobbi` | c.gobbi@pm.univpm.it |
+| Contributor | Contact |
+| :--- | :--- |
+| Chiara Gobbi | c.gobbi@pm.univpm.it |
