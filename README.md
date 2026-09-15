@@ -26,6 +26,7 @@ poetry install
 ## Reproducing the Experiments
 
 To reproduce the experiments according to our experimental setup, first launch the repair algorithm for each dataset, then run the quantitative and qualitative evaluation.
+For each command, replace `<dataset>` with the desired dataset name, e.g., `sepsis`. The available datasets are listed in the [datasets](https://github.com/KDMG/RulesRepair/tree/main/datasets) folder.
 
 The experimental results and the evaluations reported in our paper are available in the [experiments](https://github.com/KDMG/RulesRepair/tree/main/experiments) [evaluation](https://github.com/KDMG/RulesRepair/tree/main/evaluation) and folders.
 
@@ -36,8 +37,6 @@ To run the experiments for a dataset, execute:
 ```bash
 poetry run python run_pipeline.py --dataset <dataset> --seeds 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29
 ```
-
-Replace `<dataset>` with the desired dataset name, e.g., `sepsis`. The available datasets are listed in the [datasets](https://github.com/KDMG/RulesRepair/tree/main/datasets) folder.
 
 #### Output Layout
 
@@ -52,8 +51,6 @@ If the required files already exist in `<dataset>_cut/` and `decision_points/`, 
 
 The following commands reproduce the quantitative analyses reported in the paper.
 
-Every command below is run once per dataset. Most write their output under `evaluation/quantitative/<dataset>/...` by default; the exceptions are noted below.
-
 ### Computational Time
 
 ```bash
@@ -61,11 +58,7 @@ poetry run python -m analysis.core.computational_time \
     experiments/<dataset>/repair/seed_*/*/mutated/results.csv
 ```
 
-For each trial, the command computes the difference between RulesRepair's total time (summed over its whole w_simp x w_simi grid for that trial) and the fastest baseline's ("Mine") single fit time (the minimum among CART/C4.5/REPTree). It reports the mean and standard deviation of this difference, aggregated by dataset only, and saves the result under:
-
-```text
-evaluation/quantitative/<dataset>/timing/time_delta_overall.csv
-```
+See results in `evaluation/quantitative/<dataset>/timing/time_delta_overall.csv`.
 
 ### RQ1 — Dominance over the Baselines
 
@@ -83,25 +76,18 @@ poetry run python -m analysis.rq1 dominance-advantage \
     experiments/<dataset>/repair/seed_*/*/mutated/analysis/pareto_per_trial.csv
 ```
 
-`dominance-summary` reports, for each Mine algorithm (CART/C4.5/REPTree), the percentage of times that at in which that baseline dominates at least one point of RulesRepair's Pareto front, aggregated by dataset, by decision point x mutation type, and by mutation type. `dominance-advantage` reports, for the trials where a baseline does dominate, the size of the accuracy/simplicity/similarity gap (median [Q1, Q3] of the per-trial median delta), aggregated the same three ways. Both save under `evaluation/quantitative/<dataset>/rq1/dominance_summary/` and `evaluation/quantitative/<dataset>/rq1/dominance_advantage/` respectively by default.
+`dominance-summary` reports the percentage of times in which Mine dominates at least one solution of the Pareto front produced by RulesRepair. 
+`dominance-advantage` reports the gaps in accuracy, simplicity and similarity for RulesRepair solutions dominated by Mine.
+Every result is aggregated by dataset, decision point, mutation tipe.
 
-Once `dominance-summary` has been run for every dataset, combine the per-dataset `dominance_by_dataset.csv` files into the paper table:
+To obtain the results shown in our paper, run:
 
 ```bash
 poetry run python -m analysis.rq1 dominance-summary \
     -combine evaluation/quantitative/*/rq1/dominance_summary/dominance_by_dataset.csv
-```
-
-This writes the combined CSV and LaTeX table to `evaluation/quantitative/rq1/dominance_summary/dominance_frequency_table.csv`/`.tex`.
-
-Once `dominance-advantage` has been run for every dataset, combine the per-dataset `dominance_advantage_by_dataset.csv` files into the paper table:
-
-```bash
 poetry run python -m analysis.rq1 dominance-advantage \
     -combine evaluation/quantitative/*/rq1/dominance_advantage/dominance_advantage_by_dataset.csv
 ```
-
-This writes the combined CSV and LaTeX table to `evaluation/quantitative/rq1/dominance_advantage/dominance_magnitude_table.csv`/`.tex`.
 
 ### RQ2 — Statistical Significance against the Baselines
 
