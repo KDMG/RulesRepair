@@ -27,6 +27,8 @@ poetry install
 
 To reproduce the experiments according to our experimental setup, first launch the repair algorithm for each dataset, then run the quantitative and qualitative evaluation.
 
+The experimental results and the evaluations reported in our paper are available in the [experiments](https://github.com/KDMG/RulesRepair/tree/main/experiments) [evaluation](https://github.com/KDMG/RulesRepair/tree/main/evaluation) and folders.
+
 ### Running the Experimental Pipeline
 
 To run the experiments for a dataset, execute:
@@ -37,7 +39,7 @@ poetry run python run_pipeline.py --dataset <dataset> --seeds 0,1,2,3,4,5,6,7,8,
 
 Replace `<dataset>` with the desired dataset name, e.g., `sepsis`. The available datasets are listed in the [datasets](https://github.com/KDMG/RulesRepair/tree/main/datasets) folder.
 
-### Output Layout
+#### Output Layout
 
 All files produced by `run_pipeline.py` for a dataset are stored under:
 
@@ -115,67 +117,7 @@ The Pareto explorer can be launched with:
 poetry run python pareto_explorer/app.py
 ```
 
-To reproduce the qualitative example reported in Figure 3 of the paper, open the following files from `evaluation/qualitative/` on the first screen:
-
-* **Petri net:** `pn_normative_sepsis.pnml`
-* **Model:** `normative_model_sepsis_p42_change_feature_example.pkl`
-* **Log:** `sepsis_train.xes`
-
-Then select decision point **p_42**.
-
-This reproduces the example reported in the paper, with the following values:
-
-* **Normative:** Accuracy 0.728, Simplicity 0.710
-* **Repaired:** Accuracy 0.968, Simplicity 0.710, Similarity 0.667
-* **CART:** Accuracy 0.956, Simplicity 0.645, Similarity 0.000
-
-These values can be verified against:
-
-```text
-experiments/sepsis/repair/seed_3/p_42/mutated/results.csv
-```
-
-using trial `s3_change_feature_0`.
-
-### Reproducibility Note
-
-The provided `normative_model_sepsis_p42_change_feature_example.pkl` is identical to:
-
-```text
-experiments/sepsis/decision_points/normative_model.pkl
-```
-
-except for the tree associated with decision point `p_42`. Its root split is set to:
-
-```text
-DiagnosticArtAstrup_True <= 0.0
-```
-
-corresponding to the specific `change_feature` mutation used in the paper's qualitative example.
-
-Since Petri-net discovery is not fixed by the experimental seeds, a fresh execution of `run_pipeline.py` may produce a different root split for the same decision point. The provided model therefore fixes the specific mutated tree used in Figure 3, ensuring that the example can be reproduced exactly.
-
-The model can be regenerated with:
-
-```bash
-poetry run python -c "
-import pickle
-from mutations.tree_mutations import apply_change_feature
-
-with open('experiments/sepsis/decision_points/normative_model.pkl', 'rb') as f:
-    model = pickle.load(f)
-
-columns = model['p_42']['columns']
-pos = columns.index('DiagnosticArtAstrup_True')
-apply_change_feature(model['p_42']['tree'], pos, 0.0, columns)
-
-with open(
-    'evaluation/qualitative/normative_model_sepsis_p42_change_feature_example.pkl',
-    'wb'
-) as f:
-    pickle.dump(model, f)
-"
-```
+To reproduce the exact qualitative evaluation reported in our paper, the required files and detailed instructions are provided in the [qualitative](https://github.com/KDMG/RulesRepair/tree/main/evaluation/qualitative) folder.
 
 ## Contact
 
