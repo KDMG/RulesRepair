@@ -31,7 +31,7 @@ class PetriNetScreen(QWidget):
 
         left = QVBoxLayout()
         title_row = QHBoxLayout()
-        title_row.addWidget(QLabel("<b>Pareto Front Explorer</b>"))
+        title_row.addWidget(QLabel("<b>Input</b>"))
         title_row.addStretch(1)
         self.theme_btn = QPushButton("Dark mode")
         if self.on_theme_toggle is not None:
@@ -39,15 +39,17 @@ class PetriNetScreen(QWidget):
         title_row.addWidget(self.theme_btn)
         left.addLayout(title_row)
 
-        # --- Input 1: Petri net ---
-        net_box = QGroupBox("1. Petri net (.pnml)")
-        net_layout = QVBoxLayout()
+        # --- Input 1: Data Petri net (net + normative decision trees) ---
+        data_pn_box = QGroupBox("1. Data Petri net")
+        data_pn_layout = QVBoxLayout()
+
+        data_pn_layout.addWidget(QLabel("<b>Petri net</b>"))
         form = QFormLayout()
         self.net_combo = QComboBox()
         for path in backend.list_known_pnml_files():
-            self.net_combo.addItem(path.parent.name.removesuffix("_cut"), str(path))
+            self.net_combo.addItem(path.parent.name, str(path))
         form.addRow("Known:", self.net_combo)
-        net_layout.addLayout(form)
+        data_pn_layout.addLayout(form)
         row = QHBoxLayout()
         load_btn = QPushButton("Load")
         load_btn.clicked.connect(self._load_selected_net)
@@ -55,27 +57,24 @@ class PetriNetScreen(QWidget):
         open_btn = QPushButton("Open...")
         open_btn.clicked.connect(self._open_net_file)
         row.addWidget(open_btn)
-        net_layout.addLayout(row)
+        data_pn_layout.addLayout(row)
         self.net_status = QLabel("Not loaded.")
         self.net_status.setWordWrap(True)
-        net_layout.addWidget(self.net_status)
-        net_box.setLayout(net_layout)
-        left.addWidget(net_box)
+        data_pn_layout.addWidget(self.net_status)
 
-        # --- Input 2: model (trees) ---
-        model_box = QGroupBox("2. Model -- trees (.pkl)")
-        model_layout = QVBoxLayout()
+        data_pn_layout.addWidget(QLabel("<b>Normative decision trees</b>"))
         model_open_btn = QPushButton("Open...")
         model_open_btn.clicked.connect(self._open_model_file)
-        model_layout.addWidget(model_open_btn)
+        data_pn_layout.addWidget(model_open_btn)
         self.model_status = QLabel("Not loaded.")
         self.model_status.setWordWrap(True)
-        model_layout.addWidget(self.model_status)
-        model_box.setLayout(model_layout)
-        left.addWidget(model_box)
+        data_pn_layout.addWidget(self.model_status)
 
-        # --- Input 3: log ---
-        log_box = QGroupBox("3. Log (.xes)")
+        data_pn_box.setLayout(data_pn_layout)
+        left.addWidget(data_pn_box)
+
+        # --- Input 2: event log ---
+        log_box = QGroupBox("2. Event log (.xes)")
         log_layout = QVBoxLayout()
         log_open_btn = QPushButton("Open...")
         log_open_btn.clicked.connect(self._open_log_file)
@@ -105,7 +104,7 @@ class PetriNetScreen(QWidget):
         left_widget.setMaximumWidth(320)
 
         right = QVBoxLayout()
-        right.addWidget(QLabel("<b>Petri net</b>  (click a decision point to open it)"))
+        right.addWidget(QLabel("<b>Data Petri net</b>  (click a decision point to open it)"))
         self.net_scroll = QScrollArea()
         self.net_label = ClickableImageLabel(on_click=self._open_dp_by_name)
         self.net_label.setText("No net loaded.")
@@ -136,7 +135,7 @@ class PetriNetScreen(QWidget):
             self.log_status.setText("Not loaded.")
         try:
             png_path = TMP_DIR / "net.png"
-            self.net_data = backend.open_pnml(path, png_path, dark=self.dark)
+            self.net_data = backend.open_pnml(path, png_path, dpi=70, dark=self.dark)
             self.net_label.set_image(QPixmap(str(png_path)), boxes=self.net_data["dp_boxes"])
         except Exception as exc:  # noqa: BLE001
             self.net_data = None

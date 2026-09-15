@@ -1,3 +1,9 @@
+import pickle
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
 import pandas as pd
 
 from ._paths import REPO_ROOT
@@ -24,7 +30,7 @@ class MissingDataError(Exception):
     """
 
 
-BASELINE_LABELS = {"cart": "CART", "j48": "J48", "reptree": "REPTree"}
+BASELINE_LABELS = {"cart": "CART", "j48": "C4.5", "reptree": "REPTree"}
 BASELINE_BUILDERS = {"cart": build_cart_baseline, "j48": build_j48_baseline, "reptree": build_reptree_baseline}
 
 
@@ -50,6 +56,45 @@ def compute_baseline_point(prefix, base_tree, rs_old, df_adapt_raw, df_test_raw=
 def compute_baseline_point_for_tree(prefix, base_tree, df_adapt_raw, df_test_raw=None, max_depth=DEFAULT_MAX_DEPTH):
     rs_old = tuple_tree_conversion(base_tree)
     return compute_baseline_point(prefix, base_tree, rs_old, df_adapt_raw, df_test_raw=df_test_raw, max_depth=max_depth)
+
+
+def compute_baseline_point_for_tree_isolated(prefix, base_tree, df_adapt_raw, df_test_raw=None, max_depth=DEFAULT_MAX_DEPTH, timeout=180):
+    if prefix == "cart":
+        return compute_baseline_point_for_tree(prefix, base_tree, df_adapt_raw, df_test_raw=df_test_raw, max_depth=max_depth)
+
+    label = BASELINE_LABELS.get(prefix, prefix)
+    script_path = Path(__file__).resolve().parent / "_baseline_subprocess.py"
+
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        input_path = Path(tmp_dir) / "input.pkl"
+        output_path = Path(tmp_dir) / "output.pkl"
+        with open(input_path, "wb") as f:
+            pickle.dump((prefix, base_tree, df_adapt_raw, df_test_raw, max_depth), f)
+
+        try:
+            result = subprocess.run(
+                [sys.executable, str(script_path), str(input_path), str(output_path)],
+                cwd=str(REPO_ROOT), timeout=timeout,
+            )
+        except subprocess.TimeoutExpired:
+            raise RuntimeError(f"Fitting {label} timed out after {timeout}s.")
+
+        if result.returncode != 0:
+            raise RuntimeError(
+                f"Fitting {label} crashed the worker process (exit code {result.returncode}) -- this "
+                f"usually means the local Java/JVM used by python-weka-wrapper3 is incompatible "
+                f"(needs Java 9+). The main app was not affected. See the terminal output above "
+                f"for the worker process's own error details."
+            )
+
+        if not output_path.exists():
+            raise RuntimeError(f"Fitting {label} produced no result.")
+        with open(output_path, "rb") as f:
+            status, payload = pickle.load(f)
+
+    if status == "error":
+        raise RuntimeError(payload)
+    return payload
 
 
 

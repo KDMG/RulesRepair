@@ -1,7 +1,7 @@
 import graphviz
 
 DEFAULT_DPI = 130
-DECISION_POINT_FILLCOLOR = "#ffcc66"
+DECISION_POINT_FILLCOLOR = "#66bb6a"
 
 
 class GuardTree:
@@ -21,7 +21,7 @@ class GuardTree:
             dot_name = f"b{info['index']}"
             label = _esc(info.get("label") or info.get("tag") or trans_name)
             leaf_label = f"l<SUB>{info['index']}</SUB>: {label}" if show_ids else label
-            dot.node(dot_name, f"<{leaf_label}>")
+            dot.node(dot_name, f'<<FONT COLOR="{text_color}">{leaf_label}</FONT>>')
             dot.edge("root", dot_name, _esc(info["guard"]) if info.get("guard") else "False")
             leaf_id_map[dot_name] = info["index"]
         return dot, leaf_id_map
@@ -76,7 +76,7 @@ def _build_decision_dot(tree, show_ids=True, dark=False, highlight_change_ids=No
             label = f"n<SUB>{display_id}</SUB>: {content}" if show_ids else content
         color = _color_for(node)
         node_kwargs = {"color": color, "penwidth": "3"} if color else {}
-        dot.node(node_id, f"<{label}>", **node_kwargs)
+        dot.node(node_id, f'<<FONT COLOR="{text_color}">{label}</FONT>>', **node_kwargs)
         for i, child in enumerate(node.children):
             edge_label = "true" if i == 0 else ("false" if i == 1 else str(i))
             add(child)
@@ -148,7 +148,7 @@ def _render_petri_net_dot(net, im, fm, decision_point_names=None, dark=False):
     place_id_map = {}
     for p in net.places:
         if p.name in decision_point_names:
-            # black text reads fine on this orange on both themes.
+            # black text reads fine on this green on both themes.
             style, fillcolor, fontcolor = "filled", DECISION_POINT_FILLCOLOR, "black"
         elif p in im or p in fm:
             style, fillcolor, fontcolor = "filled", "lightgray", "black"

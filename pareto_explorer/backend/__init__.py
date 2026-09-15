@@ -45,7 +45,7 @@ from .io import (
 from .live_repair import (
     DEFAULT_MAX_DEPTH, DEFAULT_ALPHAS, DEFAULT_BETAS,
     MissingDataError, BASELINE_LABELS, BASELINE_BUILDERS,
-    compute_baseline_point, compute_baseline_point_for_tree,
+    compute_baseline_point, compute_baseline_point_for_tree, compute_baseline_point_for_tree_isolated,
     prepare_normative_base, split_log_train_test, compute_live_pareto_front,
     _find_offline_shared_train, _find_offline_shared_test,
 )
@@ -58,6 +58,6 @@ __all__ = [
     "list_known_pnml_files", "open_pnml", "load_model", "extract_observations", "get_dp_tree",
     "DEFAULT_MAX_DEPTH", "DEFAULT_ALPHAS", "DEFAULT_BETAS",
     "MissingDataError", "BASELINE_LABELS", "BASELINE_BUILDERS",
-    "compute_baseline_point", "compute_baseline_point_for_tree",
+    "compute_baseline_point", "compute_baseline_point_for_tree", "compute_baseline_point_for_tree_isolated",
     "prepare_normative_base", "split_log_train_test", "compute_live_pareto_front",
 ]

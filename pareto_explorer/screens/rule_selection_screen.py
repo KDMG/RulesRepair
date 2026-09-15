@@ -54,7 +54,7 @@ class RuleSelectionScreen(QWidget):
 
         left.addWidget(QLabel("Rules -- select one or more as mandatory:"))
         self.leaf_list = QListWidget()
-        self.leaf_list.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.leaf_list.setSelectionMode(QAbstractItemView.MultiSelection)
         self.leaf_list.itemSelectionChanged.connect(self._render_tree)
         left.addWidget(self.leaf_list)
 
@@ -150,7 +150,7 @@ class RuleSelectionScreen(QWidget):
         png_stem = TMP_DIR / f"tree_{self.dp_name}"
         try:
             png_path, leaf_boxes = backend.render_tree_png(
-                self.tree, png_stem, dark=self.dark, highlight_path_ids=path_ids,
+                self.tree, png_stem, dpi=70, dark=self.dark, highlight_path_ids=path_ids,
             )
             self.tree_label.set_image(QPixmap(str(png_path)), boxes=leaf_boxes)
         except Exception as exc:  # noqa: BLE001

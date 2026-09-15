@@ -58,7 +58,7 @@ class BaselineWorker(QObject):
 
     def run(self):
         try:
-            point = backend.compute_baseline_point_for_tree(self.prefix, self.tree_old, self.df_adapt, df_test_raw=self.df_test)
+            point = backend.compute_baseline_point_for_tree_isolated(self.prefix, self.tree_old, self.df_adapt, df_test_raw=self.df_test)
             self.finished.emit(point)
         except Exception as exc:
             self.failed.emit(str(exc))

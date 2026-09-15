@@ -210,6 +210,8 @@ class FrontExplorerScreen(QWidget):
         for slider in (self.min_acc_slider, self.min_simpl_slider, self.min_jac_slider):
             slider.setValue(0)
         self._last_shown_row = None
+        self.repaired_label.clear_pixmap("--")
+        self.repaired_metrics_label.setText(self._metrics_text(None, None, None))
         self._show_normative_tree()
         self._refresh()
         self._update_baseline_display()
@@ -239,6 +241,16 @@ class FrontExplorerScreen(QWidget):
             return
         baseline = self.baseline_points.get(self.baseline_prefix)
         baseline_label = f"{backend.BASELINE_LABELS[self.baseline_prefix]} (rediscovering)"
+        if baseline is not None:
+            min_acc = self.min_acc_slider.value() / 100.0
+            min_simpl = self.min_simpl_slider.value() / 100.0
+            min_jac = self.min_jac_slider.value() / 100.0
+            if (
+                baseline["accuracy_display"] < min_acc
+                or baseline["simplicity"] < min_simpl
+                or baseline["jaccard"] < min_jac
+            ):
+                baseline = None
 
         self.ax_a.clear()
         self.ax_b.clear()
@@ -312,11 +324,24 @@ class FrontExplorerScreen(QWidget):
                     text.set_color(text_color)
 
     def _update_selected_marker(self):
-        row = self._last_shown_row
-        if row is None or self._selected_marker_a is None or self._selected_marker_b is None:
+        if self._selected_marker_a is None or self._selected_marker_b is None:
             return
-        self._selected_marker_a.set_offsets([[row["simplicity"], row["jaccard"]]])
-        self._selected_marker_b.set_offsets([[row["simplicity"], row["accuracy_display"]]])
+        row = self._last_shown_row
+        min_acc = self.min_acc_slider.value() / 100.0
+        min_simpl = self.min_simpl_slider.value() / 100.0
+        min_jac = self.min_jac_slider.value() / 100.0
+        visible = (
+            row is not None
+            and row["accuracy_display"] >= min_acc
+            and row["simplicity"] >= min_simpl
+            and row["jaccard"] >= min_jac
+        )
+        if visible:
+            self._selected_marker_a.set_offsets([[row["simplicity"], row["jaccard"]]])
+            self._selected_marker_b.set_offsets([[row["simplicity"], row["accuracy_display"]]])
+        else:
+            self._selected_marker_a.set_offsets(np.empty((0, 2)))
+            self._selected_marker_b.set_offsets(np.empty((0, 2)))
 
     def _on_pick(self, event):
         if not len(event.ind):

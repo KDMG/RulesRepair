@@ -10,9 +10,7 @@ from .rendering import DEFAULT_DPI, GuardTree, _node_boxes_from_plain, _render_p
 
 
 def list_known_pnml_files():
-    matches = set(REPO_ROOT.glob("datasets/*_cut/pn_normative.pnml"))
-    matches |= set(REPO_ROOT.glob("experiments/*/*_cut/pn_normative.pnml"))
-    return sorted(matches)
+    return sorted(REPO_ROOT.glob("evaluation/qualitative/*/pn_normative.pnml"))
 
 
 
