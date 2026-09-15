@@ -25,7 +25,7 @@ poetry install
 
 ## Reproducing the Experiments
 
-To reproduce the experiments, first run the experimental pipeline for the desired dataset and then run the quantitative evaluation. The qualitative example reported in the paper can be reproduced separately as described below.
+To reproduce the experiments according to our experimental setup, first launch the repair algorithm for each dataset, then run the quantitative and qualitative evaluation.
 
 ### Running the Experimental Pipeline
 
@@ -47,9 +47,9 @@ experiments/<dataset>/
 
 The directory contains:
 
-* `<dataset>_cut/` — the mined Petri net (`pn_normative.pnml`) and the normative, training, and test XES splits;
-* `decision_points/` — the extracted decision-point tables and `normative_model.pkl`, used to generate the mutations;
-* `repair/` — the repair results, organized by seed.
+* `<dataset>_cut/`: the mined Petri net (`pn_normative.pnml`) and the XES splits;
+* `decision_points/`: the extracted decision points and `normative_model.pkl`, used to generate the mutations;
+* `repair/`: the repair results, by seed.
 
 If the required files already exist in `<dataset>_cut/` and `decision_points/`, `run_pipeline.py` reuses them instead of overwriting them. This also allows the pipeline to be executed with custom inputs. For example, a specific Petri net for a dataset can be placed directly in the corresponding `<dataset>_cut/` directory.
 
