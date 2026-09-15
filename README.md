@@ -26,6 +26,7 @@ poetry install
 ## Reproducing the Experiments
 
 To reproduce the experiments according to our experimental setup, first launch the repair algorithm for each dataset, then run the quantitative and qualitative evaluation.
+The experimental results and the evaluations reported in our paper are available in the [experiments](https://github.com/KDMG/RulesRepair/tree/main/experiments) [evaluation](https://github.com/KDMG/RulesRepair/tree/main/evaluation) and folders.
 
 ### Running the Experimental Pipeline
 
@@ -52,8 +53,6 @@ The directory contains:
 * `repair/`: the repair results, by seed.
 
 If the required files already exist in `<dataset>_cut/` and `decision_points/`, `run_pipeline.py` reuses them instead of overwriting them. This also allows the pipeline to be executed with custom inputs. For example, a specific Petri net for a dataset can be placed directly in the corresponding `<dataset>_cut/` directory.
-
-The experimental results reported in our paper are available in the [experiments](https://github.com/KDMG/RulesRepair/tree/main/experiments) folder.
 
 ## Quantitative Evaluation
 
