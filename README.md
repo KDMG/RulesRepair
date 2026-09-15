@@ -117,7 +117,7 @@ The Pareto explorer can be launched with:
 poetry run python pareto_explorer/app.py
 ```
 
-To reproduce the exact qualitative evaluation of our paper, you find the instruction in [qualitative_readme.txt](https://github.com/KDMG/RulesRepair/tree/main/evaluation/qualitative/qualitative_readme.txt)
+To reproduce the exact qualitative evaluation reported in our paper, the required files and detailed instructions are provided in the [qualitative](https://github.com/KDMG/RulesRepair/tree/main/evaluation/qualitative) folder
 
 ## Contact
 
