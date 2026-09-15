@@ -9,7 +9,7 @@ To run RulesRepair, you need to have installed:
 * [Python 3.9](https://www.python.org/downloads/)
 * [Poetry 2.2.1](https://python-poetry.org/docs/#installation), used to install the dependencies specified in `pyproject.toml`.
 * [Graphviz](https://graphviz.org/download/), required by the `graphviz` Python package to render decision trees.
-* [JDK 23](https://www.oracle.com/java/technologies/javase/jdk23-archive-downloads.html) (optional), required only for the Weka C4.5/REPTree.
+* [JDK 17](https://www.oracle.com/java/technologies/javase/jdk17-archive-downloads.html) (optional), required only for the Weka C4.5/REPTree.
   
 ## Installation
 
