@@ -41,10 +41,7 @@ Replace `<dataset>` with the desired dataset name, e.g., `sepsis`. The available
 
 #### Output Layout
 
-All files produced by `run_pipeline.py` for a dataset are stored under `experiments/<dataset>/`
-
-The directory contains:
-
+All files produced by `run_pipeline.py` for a dataset are stored under `experiments/<dataset>/`, which contains:
 * `<dataset>_cut/`: the mined Petri net (`pn_normative.pnml`) and the XES splits;
 * `decision_points/`: the extracted decision points and `normative_model.pkl`, used to generate the mutations;
 * `repair/`: the repair results, by seed.
