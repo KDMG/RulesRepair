@@ -79,11 +79,20 @@ def main(argv=None):
         return 1
 
     dataset = args.dataset
-    cut_dir = REPO_ROOT / f"datasets/{dataset}_cut"
+    legacy_cut_dir = REPO_ROOT / f"datasets/{dataset}_cut"
+    legacy_dp_dir = REPO_ROOT / f"decision_points/{dataset}"
+    if legacy_cut_dir.exists() or legacy_dp_dir.exists():
+        cut_dir = legacy_cut_dir
+        normative_dp_dir = legacy_dp_dir / "normative"
+        train_dp_dir = legacy_dp_dir / "train"
+        normative_model = legacy_dp_dir / "normative_model.pkl"
+    else:
+        dataset_dir = REPO_ROOT / f"experiments/{dataset}"
+        cut_dir = dataset_dir / f"{dataset}_cut"
+        normative_dp_dir = dataset_dir / "decision_points/normative"
+        train_dp_dir = dataset_dir / "decision_points/train"
+        normative_model = dataset_dir / "decision_points/normative_model.pkl"
     pnml = cut_dir / "pn_normative.pnml"
-    normative_dp_dir = REPO_ROOT / f"decision_points/{dataset}/normative"
-    train_dp_dir = REPO_ROOT / f"decision_points/{dataset}/train"
-    normative_model = REPO_ROOT / f"decision_points/{dataset}/normative_model.pkl"
     out_base = REPO_ROOT / f"experiments/{dataset}/repair"
 
     env = dict(os.environ)

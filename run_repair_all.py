@@ -19,7 +19,7 @@ def parse_args(argv):
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument("--dp-dir", default="decision_points/sepsis/train")
+    parser.add_argument("--dp-dir", default="experiments/sepsis/decision_points/train")
     parser.add_argument("--normative-model", default="normative_model.pkl")
     parser.add_argument("--out-base", default="experiments/sepsis/repair")
     parser.add_argument("--w-simps", default=DEFAULT_W_SIMPS)

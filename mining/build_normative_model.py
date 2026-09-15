@@ -12,7 +12,7 @@ NON_FEATURE_COLUMNS = IDENTIFIER_COLUMNS | {"branch_index", "branch_label"}
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--dp-dir", default="decision_points/sepsis/normative",
+    parser.add_argument("--dp-dir", default="experiments/sepsis/decision_points/normative",
                          help="Directory of dp_<place>.csv files, e.g. produced by regenerate_decision_points.py")
     parser.add_argument("--initial-fraction", type=float, default=1,
                          help="Share of each table used as D_initial (guard mining), taken from the start, in order")

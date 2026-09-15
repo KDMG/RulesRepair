@@ -102,7 +102,7 @@ def main():
         "--out-dir", "--out_dir",
         dest="out_dir",
         help="Output directory",
-        default="datasets/sepsis_cut",
+        default="experiments/sepsis/sepsis_cut",
     )
 
     parser.add_argument(

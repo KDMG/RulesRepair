@@ -179,7 +179,7 @@ input/.DS_Store
 # assumed to already exist on every server (never traveled through git,
 # never will).
 decision_points/
-experiments/
+experiments/*/repair/
 experiments.zip
 normative_model*.pkl
 !evaluation/qualitative/*.pkl
@@ -189,13 +189,14 @@ n*.log
 sepsis_repair.log
 results_sepsis.txt
 datasets/*_cut/*.xes*
+experiments/*/*_cut/*.xes*
 
-# NOTE: datasets/*_cut/pn_normative.pnml is deliberately NOT excluded above
-# (only datasets/*_cut/*.xes* is) -- unlike everything else under datasets/,
-# it can only be produced on a machine with a display (ProM's package
-# manager is GUI-only, see mining/build_pn_normative.py's docstring), so it
-# DOES need to travel through git -- it's also tiny (20-56KB), no size
-# concern.
+# NOTE: pn_normative.pnml is deliberately NOT excluded above (only *.xes* is,
+# both under datasets/*_cut/ and under experiments/*/*_cut/) -- unlike
+# everything else under datasets/, it can only be produced on a machine with
+# a display (ProM's package manager is GUI-only, see
+# mining/build_pn_normative.py's docstring), so it DOES need to travel
+# through git -- it's also tiny (20-56KB), no size concern.
 
 # vendored third-party lib with its own embedded .git (3rdparty/rulecosi) --
 # untouched this session, already present on every server; leaving it out

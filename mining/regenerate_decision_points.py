@@ -99,7 +99,7 @@ def distinct_dp_places(trans_to_dp):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--pnml", default="datasets/sepsis_cut/pn.pnml")
+    parser.add_argument("--pnml", default="experiments/sepsis/sepsis_cut/pn.pnml")
     parser.add_argument("--xes", default="datasets/sepsis/sepsis.xes")
     parser.add_argument("--min-fitness", type=float, default=0)
     parser.add_argument("--out-dir", required=True)
