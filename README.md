@@ -23,8 +23,6 @@ poetry env use python3.9
 poetry install
 ```
 
-All commands below are executed through Poetry, so activating the virtual environment is not required.
-
 ## Reproducing the Experiments
 
 To reproduce the experiments, first run the experimental pipeline for the desired dataset and then run the quantitative evaluation. The qualitative example reported in the paper can be reproduced separately as described below.
