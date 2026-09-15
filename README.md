@@ -60,7 +60,7 @@ poetry run python -m analysis.core.computational_time \
 
 See results in `evaluation/quantitative/<dataset>/timing/time_delta_overall.csv`.
 
-### RQ1 — Dominance over the Baselines
+### RQ1
 
 Run:
 
@@ -80,7 +80,7 @@ poetry run python -m analysis.rq1 dominance-advantage \
 `dominance-advantage` reports the gaps in accuracy, simplicity and similarity for RulesRepair solutions dominated by Mine.
 Every result is aggregated by dataset, decision point, mutation tipe.
 
-To obtain the results shown in our paper, run:
+To obtain the combined latex tables shown in our paper, run:
 
 ```bash
 poetry run python -m analysis.rq1 dominance-summary \
@@ -89,29 +89,9 @@ poetry run python -m analysis.rq1 dominance-advantage \
     -combine evaluation/quantitative/*/rq1/dominance_advantage/dominance_advantage_by_dataset.csv
 ```
 
-### RQ2 — Statistical Significance against the Baselines
+### RQ2
 
 Run:
-
-```bash
-poetry run python -m analysis.rq2.statistical rq-table \
-    experiments/<dataset>/repair/seed_*/*/mutated/analysis/pareto_per_trial.csv \
-    --dataset <dataset> \
-    --trial-level
-```
-
-The command generates one table per decision point, containing an `overall` row and one row for each mutation type, saved under `evaluation/quantitative/<dataset>/rq2/rq_table/`. This compares RulesRepair against CART only.
-
-To obtain results pooled into one row per dataset, add the `--by-dataset` option.
-
-Once `rq-table` has been run for every dataset, combine the per-dataset CSVs into the paper table with `--combine`:
-
-```bash
-poetry run python -m analysis.rq2.statistical rq-table \
-    --combine evaluation/quantitative/*/rq2/rq_table/rq_unified_trial_level_*.csv
-```
-
-For the paper table comparing RulesRepair against all three baselines (CART, C4.5, REPTree) at once, use `multi-baseline-table` instead, run once per dataset:
 
 ```bash
 poetry run python -m analysis.rq2.statistical multi-baseline-table \
@@ -120,20 +100,14 @@ poetry run python -m analysis.rq2.statistical multi-baseline-table \
     --trial-level --by-dataset
 ```
 
-Saved under `evaluation/quantitative/<dataset>/rq2/multi_baseline_table/`.
-
-Each dataset's `p_holm` at this point only corrects for that dataset/view's own test, not for the fact that CART, C4.5 and REPTree are three comparisons against the same cell. Once `multi-baseline-table` has been run for every dataset, get the final paper table by running `holm-table` on the per-dataset CSVs, which re-applies Holm-Bonferroni correction across the three baselines within each (dataset, view) group:
+To obtain the combined latex table shown in our paper, run:
 
 ```bash
 poetry run python -m analysis.rq2.statistical holm-table \
     evaluation/quantitative/*/rq2/multi_baseline_table/rq_unified_trial_level_by_dataset_*.csv
 ```
 
-This writes the Hodges–Lehmann paper table (with the corrected significance markers) to `evaluation/quantitative/rq2/holm_table/rq_unified_trial_level_by_dataset_holm_corrected.csv`/`.tex`.
-
-(`multi-baseline-table` also has its own `--combine` flag, which merges the per-dataset CSVs into the same table shape without the cross-baseline correction -- useful for a quick preview, but `holm-table` is the correct final step for the paper.)
-
-### RQ2 — Attainment Figures
+### Attainment figures
 
 Run once per dataset to compute the attainment fields:
 
@@ -153,8 +127,6 @@ poetry run python -m analysis.rq2.attainment_figures render-figures \
     --pareto-csvs experiments/<dataset>/repair/seed_*/*/mutated/analysis/pareto_per_trial.csv \
     --dataset-level
 ```
-
-Saved under `evaluation/quantitative/<dataset>/rq2/render_figures/`, as two PNGs: `..._ALL_DPS_all_CART.png` (the accuracy-level slices, at Q1/median/Q3) and `..._ALL_DPS_diff_CART.png` (the attainment-difference slices). Use `--baseline-label`/`--baseline-acc-col`/`--baseline-nodes-col`/`--baseline-jaccard-col` to compare against C4.5 or REPTree instead of CART. See `--help` for the per-decision-point and representative-decision-point rendering modes (`--all-dps`, and the default mode driven by `rq_table_csvs`).
 
 ## Qualitative Evaluation
 
