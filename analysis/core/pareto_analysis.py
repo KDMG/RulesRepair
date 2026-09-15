@@ -253,8 +253,8 @@ def main():
     parser.add_argument(
         "--reaudit-maximize", action=argparse.BooleanOptionalAction, default=True
     )
-    parser.add_argument("--reaudit-header", default=None, help="Override third-objective column header in the printed summary table (default depends on --reaudit-maximize).")
-    parser.add_argument("--metric-header", default="F1 test", help="Printed summary-table column header for --f1-col (default 'F1 test').")
+    parser.add_argument("--reaudit-header", default=None)
+    parser.add_argument("--metric-header", default="F1 test")
     args = parser.parse_args()
 
     reaudit_header = args.reaudit_header or ("Similarity" if args.reaudit_maximize else "Reaudit %")

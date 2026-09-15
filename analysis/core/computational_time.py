@@ -7,16 +7,7 @@ import pandas as pd
 _DATASET_RE = re.compile(r"experiments[/\\]([^/\\]+)[/\\]repair[/\\]")
 _SEED_RE = re.compile(r"seed_([^/\\]+)[/\\]")
 
-TIME_COLUMNS = {
-    "rulesrepair_grow_time_sec": "RulesRepair",
-    "cart_train_time_sec": "CART",
-    "cart_entropy_train_time_sec": "CART-entropy",
-    "c45_train_time_sec": "C4.5",
-    "j48_train_time_sec": "J48",
-    "reptree_train_time_sec": "REPTree",
-}
-
-NO_OPERATOR_LABEL = "baseline (no mutation operator)"
+BASELINE_TIME_COLUMNS = ["cart_train_time_sec", "j48_train_time_sec", "reptree_train_time_sec"]
 
 
 def infer_dataset(csv_path):
@@ -36,45 +27,42 @@ def infer_decision_point(csv_path):
     return path.parent.name
 
 
-def load_all(csv_paths):
-    id_cols = ["dataset", "seed", "decision_point", "operator"]
+def load_trials(csv_paths):
     frames = []
-    n_trials = 0
     for p in csv_paths:
         df = pd.read_csv(p)
-        present = [c for c in TIME_COLUMNS if c in df.columns]
-        if not present:
+        present_baselines = [c for c in BASELINE_TIME_COLUMNS if c in df.columns]
+        if "trial_id" not in df.columns or "rulesrepair_grow_time_sec" not in df.columns or not present_baselines:
             continue
-        n_trials += len(df)
-        df = df[present].copy()
-        df["operator"] = df["operator"].fillna(NO_OPERATOR_LABEL) if "operator" in df.columns else NO_OPERATOR_LABEL
+        keep_cols = ["trial_id", "rulesrepair_grow_time_sec"] + present_baselines
+        df = df[keep_cols].copy()
         df["dataset"] = infer_dataset(p)
         df["seed"] = infer_seed(p)
         df["decision_point"] = infer_decision_point(p)
 
-        long = df.melt(
-            id_vars=id_cols, value_vars=present,
-            var_name="time_column", value_name="seconds",
-        ).dropna(subset=["seconds"])
-        if len(long):
-            frames.append(long)
+        agg = {"rulesrepair_grow_time_sec": "sum"}
+        for c in present_baselines:
+            agg[c] = "first"
+        trials = df.groupby(["dataset", "seed", "decision_point", "trial_id"], as_index=False).agg(agg)
+        trials = trials.rename(columns={"rulesrepair_grow_time_sec": "rulesrepair_total_sec"})
+        trials["mine_min_sec"] = trials[present_baselines].min(axis=1)
+        trials["delta_sec"] = trials["rulesrepair_total_sec"] - trials["mine_min_sec"]
+        frames.append(trials)
     if not frames:
         raise SystemExit(
-            "None of the given file(s) contain a *_train_time_sec or rulesrepair_grow_time_sec column."
+            "None of the given file(s) contain trial_id + rulesrepair_grow_time_sec + at least "
+            "one baseline *_train_time_sec column."
         )
-    long = pd.concat(frames, ignore_index=True)
-    long["algorithm"] = long["time_column"].map(TIME_COLUMNS)
-    return long, n_trials
+    trials = pd.concat(frames, ignore_index=True)
+    return trials, len(trials)
 
 
-def summarize(long, group_cols):
-    grouped = long.groupby(group_cols + ["algorithm"])["seconds"]
-    out = grouped.agg(
-        n="count", mean_sec="mean", median_sec="median", std_sec="std", total_sec="sum",
-    ).reset_index()
-    for col in ("mean_sec", "median_sec", "std_sec", "total_sec"):
+def summarize_delta(trials):
+    grouped = trials.groupby("dataset")["delta_sec"]
+    out = grouped.agg(n="count", mean_sec="mean", std_sec="std").reset_index()
+    for col in ("mean_sec", "std_sec"):
         out[col] = out[col].round(4)
-    return out.sort_values(group_cols + ["algorithm"]).reset_index(drop=True)
+    return out.sort_values("dataset").reset_index(drop=True)
 
 
 def main(argv=None):
@@ -82,28 +70,32 @@ def main(argv=None):
     parser.add_argument("csv_paths", nargs="+", help="results.csv file(s), glob-expanded by your shell")
     parser.add_argument(
         "--out-dir", default=None,
-        help="Write the three summary CSVs here. Default: evaluation/quantitative/timing/",
+        help="Write time_delta_overall.csv here. Default: evaluation/quantitative/<dataset>/timing/ "
+             "(dataset inferred from the input paths; falls back to evaluation/quantitative/timing/ "
+             "if the inputs span more than one dataset).",
     )
     args = parser.parse_args(argv)
 
-    out_dir = Path(args.out_dir) if args.out_dir else Path("evaluation") / "quantitative" / "timing"
+    if args.out_dir:
+        out_dir = Path(args.out_dir)
+    else:
+        datasets = {infer_dataset(p) for p in args.csv_paths}
+        if len(datasets) == 1:
+            out_dir = Path("evaluation") / "quantitative" / next(iter(datasets)) / "timing"
+        else:
+            out_dir = Path("evaluation") / "quantitative" / "timing"
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    long, n_trials = load_all(args.csv_paths)
-    print(f"Loaded {n_trials} trial(s) from {len(args.csv_paths)} file(s).")
+    trials, n_trials = load_trials(args.csv_paths)
+    print(f"Loaded {n_trials} trial(s) from {len(args.csv_paths)} file(s) "
+          f"(RulesRepair time summed over its whole w_simp x w_simi grid per trial).")
 
-    tables = [
-        ("Overall, by dataset", ["dataset"], "time_overall.csv"),
-        ("By mutation type", ["dataset", "operator"], "time_by_mutation_type.csv"),
-        ("By decision point", ["dataset", "decision_point"], "time_by_decision_point.csv"),
-    ]
-    for title, group_cols, filename in tables:
-        table = summarize(long, group_cols)
-        out_csv = out_dir / filename
-        table.to_csv(out_csv, index=False)
-        print(f"\n{title}:")
-        print(table.to_string(index=False))
-        print(f"Wrote {out_csv}")
+    table = summarize_delta(trials)
+    out_csv = out_dir / "time_delta_overall.csv"
+    table.to_csv(out_csv, index=False)
+    print("\nRulesRepair time minus fastest Mine algorithm, by dataset:")
+    print(table.to_string(index=False))
+    print(f"Wrote {out_csv}")
 
 
 if __name__ == "__main__":

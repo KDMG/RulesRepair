@@ -3,14 +3,12 @@
 """
 import sys
 
-from analysis.rq2.statistical.igd_comparison import main_igd_comparison
 from analysis.rq2.statistical.rq_table import main_rq_table
 from analysis.rq2.statistical.multi_baseline_table import main_multi_baseline_table
 from analysis.rq2.statistical.holm_table import main_holm_table
 
 
 COMMANDS = {
-    "igd-comparison": main_igd_comparison,
     "rq-table": main_rq_table,
     "multi-baseline-table": main_multi_baseline_table,
     "holm-table": main_holm_table,

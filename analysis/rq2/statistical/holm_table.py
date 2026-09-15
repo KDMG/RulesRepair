@@ -11,11 +11,6 @@ from analysis.rq2.statistical.rq_table import DATASET_DISPLAY, unified_results_t
 HOLM_REQUIRED_COLUMNS = ["dataset", "view", "baseline", "rq12_not_applicable", "wilcoxon_p", "p_holm"]
 
 
-CAPTION = (
-    "rq2 trial level."
-)
-
-
 def load_and_concat(paths, report):
     frames = []
     for p in paths:
@@ -100,7 +95,7 @@ def main_holm_table(argv=None):
     args = parser.parse_args(argv)
 
     if args.out_dir is None:
-        args.out_dir = str(Path("quantitative_evaluation") / "rq2" / "holm_table")
+        args.out_dir = str(Path("evaluation") / "quantitative" / "rq2" / "holm_table")
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -118,7 +113,7 @@ def main_holm_table(argv=None):
     corrected.to_csv(csv_out, index=False)
     print(f"\nWrote {csv_out} ({len(corrected)} row(s)).")
 
-    tex = unified_results_to_latex_by_dataset(corrected, alpha=args.alpha, caption=CAPTION)
+    tex = unified_results_to_latex_by_dataset(corrected, alpha=args.alpha)
     tex_out = out_dir / "rq_unified_trial_level_by_dataset_holm_corrected.tex"
     tex_out.write_text(tex)
     print(f"Wrote {tex_out}.")

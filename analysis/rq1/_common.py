@@ -123,6 +123,12 @@ def _dataset_display(name):
     return DATASET_DISPLAY_NAMES.get(name, str(name).replace("_", " ").title())
 
 
+DATASET_COLUMN_ORDER = [
+    "sepsis", "production", "hospital_billing", "road_traffic",
+    "prepaid_travel_costs", "international_declarations",
+]
+
+
 BASELINE_ALGORITHMS = [
     {"key": "cart", "display": "CART",
      "acc_col": "acc_cart_test", "nodes_col": "cart_total_nodes", "jaccard_col": "sim_old_cart_jaccard"},

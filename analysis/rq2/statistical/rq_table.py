@@ -382,17 +382,17 @@ def unified_results_to_latex(df, alpha=0.05,
     return "\n".join(lines)
 
 
-def unified_results_to_latex_by_dataset(df, alpha=0.05,
-                                          caption="RQ1+RQ2 -- SUPPLEMENTARY, TRIAL-LEVEL, POOLED ACROSS DECISION "
-                                                  "POINTS (no per-seed aggregation, no per-decision-point split).",
-                                          label="tab:rq12_unified_by_dataset"):
+def unified_results_to_latex_by_dataset(df, alpha=0.05, caption=None, label="tab:hodges"):
+    if caption is None:
+        caption = (
+            f"Hodges–Lehmann estimates with 95\\% confidence intervals. \\textsc{{RR}} denotes "
+            f"\\textsc{{RulesRepair}}, the symbol * indicates Holm-adjusted $p$-values $< {alpha:g}$."
+        )
     n_view_cols = len(VIEW_ORDER)
     lines = []
-    lines.append("% Requires \\usepackage{multirow} and \\usepackage{booktabs} in the preamble.")
-    lines.append("\\begin{table}[htbp]")
+    lines.append("\\begin{table}[tb]")
     lines.append("\\centering")
-    lines.append("\\Huge")
-    lines.append("\\renewcommand{\\arraystretch}{0.85}")
+    lines.append("\\large")
     lines.append("\\resizebox{\\textwidth}{!}{%")
     lines.append("\\begin{tabular}{ll" + "c" * n_view_cols + "}")
     lines.append("\\toprule")
@@ -413,7 +413,7 @@ def unified_results_to_latex_by_dataset(df, alpha=0.05,
                 if i == 0 else ""
             )
             baseline_display = BASELINE_DISPLAY_BY_DATASET.get(baseline, baseline)
-            baseline_text = f"\\textsc{{{_latex_escape(baseline_display)}}} vs \\textsc{{RulesRepair}}"
+            baseline_text = f"\\textsc{{{_latex_escape(baseline_display)}}} vs \\textsc{{RR}}"
 
             cell_texts = [_hl_cell_text(view_lookup.get(v), alpha) for v in VIEW_ORDER]
             lines.append(f"{dataset_cell} & {baseline_text} & " + " & ".join(cell_texts) + " \\\\")
@@ -424,12 +424,8 @@ def unified_results_to_latex_by_dataset(df, alpha=0.05,
     else:
         lines.append("\\bottomrule")
 
-    lines.append("\\end{tabular}")
+    lines.append("\\end{tabular}%")
     lines.append("}")
-    lines.append(
-        f"\\vspace{{2pt}}\n{{\\footnotesize $^*$Holm-adjusted $p < {alpha:g}$ "
-        "(RulesRepair vs. baseline significantly different on paired IGD+).}"
-    )
     lines.append(f"\\caption{{{caption}}}")
     lines.append(f"\\label{{{label}}}")
     lines.append("\\end{table}")
@@ -480,7 +476,10 @@ def main_rq_table(argv=None):
         parser.error("--by-dataset requires --trial-level (in default, non --combine mode).")
 
     if args.out_dir is None:
-        args.out_dir = str(Path("quantitative_evaluation") / "rq2" / "rq_table")
+        if args.dataset and not args.combine:
+            args.out_dir = str(Path("evaluation") / "quantitative" / args.dataset / "rq2" / "rq_table")
+        else:
+            args.out_dir = str(Path("evaluation") / "quantitative" / "rq2" / "rq_table")
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -516,7 +515,7 @@ def main_rq_table(argv=None):
         print(f"Wrote {csv_out} ({len(df)} row(s)).")
 
     latex_fn = unified_results_to_latex_by_dataset if args.by_dataset else unified_results_to_latex
-    tex = latex_fn(df, alpha=args.alpha, caption=caption)
+    tex = latex_fn(df, alpha=args.alpha) if args.by_dataset else latex_fn(df, alpha=args.alpha, caption=caption)
     tex_out = out_dir / f"{tex_basename}.tex"
     tex_out.write_text(tex)
     print(f"Wrote {tex_out}.")

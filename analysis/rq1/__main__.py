@@ -4,16 +4,14 @@
 import sys
 
 from analysis.rq1.multi_baseline import main_multi_baseline
-from analysis.rq1.cart_summary import main_cart_summary
+from analysis.rq1.dominance_summary import main_dominance_summary
 from analysis.rq1.dominance_advantage import main_dominance_advantage
-from analysis.rq1.build_table import main_build_table
 
 
 COMMANDS = {
     "multi-baseline": main_multi_baseline,
-    "cart-summary": main_cart_summary,
+    "dominance-summary": main_dominance_summary,
     "dominance-advantage": main_dominance_advantage,
-    "build-table": main_build_table,
 }
 
 

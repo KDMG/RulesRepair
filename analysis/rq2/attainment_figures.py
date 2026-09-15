@@ -847,7 +847,7 @@ def main_outputs(argv=None):
     args = parser.parse_args(argv)
 
     if args.out_dir is None:
-        args.out_dir = str(Path("quantitative_evaluation") / "rq2" / "attainment_outputs")
+        args.out_dir = str(Path("evaluation") / "quantitative" / args.dataset / "rq2" / "attainment_outputs")
 
     by_dp = {}
     for p in args.csv_paths:
@@ -1090,7 +1090,7 @@ def main_render_figures(argv=None):
     args = parser.parse_args(argv)
 
     if args.out_dir is None:
-        args.out_dir = str(Path("quantitative_evaluation") / "rq2" / "render_figures")
+        args.out_dir = str(Path("evaluation") / "quantitative" / args.dataset / "rq2" / "render_figures")
 
     if args.dataset_level:
         print(

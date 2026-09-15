@@ -30,9 +30,7 @@ def filter_by_mutation_type(df, mutation_type, source=""):
     series = get_operator_series(df)
     if series is None:
         raise ValueError(
-            f"{source}: df has neither an 'operator' nor an 'operator_detail' column -- nothing to filter "
-            f"on (expected for a Scenario 0 baseline-only CSV, which has no mutation operator at all; "
-            f"mutation-type-specific views only apply to Scenario 3 data)."
+            f"error."
         )
     validate_mutation_types(series, source=source)
     return df[series == mutation_type]

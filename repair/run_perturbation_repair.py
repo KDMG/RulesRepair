@@ -1,18 +1,10 @@
 import argparse
-import ast
 import json
-import os
 import pickle
-import re
 import time
-from contextlib import contextmanager
-from pathlib import Path
 
 import pandas as pd
-from filelock import FileLock
 from sklearn.metrics import f1_score, accuracy_score
-from chefboost import Chefboost as chef
-from chefboost.commons import functions as chef_functions
 
 from mining.cart_training import build_tree, encode_records
 from mining.weka_baselines import build_j48_trees, build_reptree_tree
@@ -190,69 +182,6 @@ def build_reptree_baseline(df_adapt_raw, df_test_raw, max_depth, rs_old, old_tre
     return build_binary_baseline(build_reptree_tree, "REPTree", df_adapt_raw, df_test_raw, max_depth, rs_old, old_tree)
 
 
-# chefboost always writes its fitted model to <cwd>/outputs/rules/rules.py --
-# that path is hardcoded inside the library and not configurable. To avoid
-# littering the repo root with it, we chdir into a dedicated, gitignored
-# scratch folder for the duration of the fit call instead.
-REPO_ROOT = Path(__file__).resolve().parent.parent
-CHEFBOOST_SCRATCH_DIR = REPO_ROOT / ".chefboost_scratch"
-CHEFBOOST_RULES_FILE = CHEFBOOST_SCRATCH_DIR / "outputs" / "rules" / "rules.py"
-
-CHEFBOOST_FIT_LOCK_FILE = CHEFBOOST_SCRATCH_DIR / "chefboost_fit.lock"
-
-
-@contextmanager
-def _chefboost_fit_lock():
-    CHEFBOOST_SCRATCH_DIR.mkdir(parents=True, exist_ok=True)
-    with FileLock(str(CHEFBOOST_FIT_LOCK_FILE) + ".lock"):
-        prev_cwd = os.getcwd()
-        os.chdir(CHEFBOOST_SCRATCH_DIR)
-        try:
-            yield
-        finally:
-            os.chdir(prev_cwd)
-
-
-def _count_chefboost_nodes(source_text):
-    n_splits = len(re.findall(r'^\s*#\s*\{"feature":', source_text, flags=re.MULTILINE))
-    n_leaves = sum(1 for node in ast.walk(ast.parse(source_text)) if isinstance(node, ast.Return))
-    return n_splits + n_leaves
-
-
-def build_chefboost_baseline(algorithm, df_adapt_raw, df_test_raw, max_depth):
-    def _to_chefboost_records(df_raw):
-        records = df_raw.drop(
-            columns=[c for c in NON_FEATURE_COLUMNS if c in df_raw.columns]
-        ).rename(columns={"branch": "Decision"})
-        if records.columns[-1] != "Decision":
-            new_order = [c for c in records.columns if c != "Decision"] + ["Decision"]
-            records = records[new_order]
-        return records
-
-    config = {"algorithm": algorithm, "max_depth": max_depth, "enableParallelism": False}
-    try:
-        with _chefboost_fit_lock():
-            model = chef.fit(_to_chefboost_records(df_adapt_raw), config, target_label="Decision", silent=True)
-            with open(CHEFBOOST_RULES_FILE) as f:
-                total_nodes = _count_chefboost_nodes(f.read())
-    except Exception as ex:  # pragma: no cover -- mirrors build_cart_baseline()'s fail-soft convention
-        print(f"Warning: chefboost failed to fit '{algorithm}' on this trial's D_adapt ({ex}), "
-              f"reporting None for every {algorithm} column on this row.")
-        return None, None, None, None, None, None
-
-    adapt_records = _to_chefboost_records(df_adapt_raw)
-    test_records = _to_chefboost_records(df_test_raw)
-    chef_functions.bulk_prediction(adapt_records, model)
-    chef_functions.bulk_prediction(test_records, model)
-
-    f1_adapt = f1_macro(adapt_records["Decision"], adapt_records["Prediction"])
-    f1_test = f1_macro(test_records["Decision"], test_records["Prediction"])
-    acc_adapt = acc_score(adapt_records["Decision"], adapt_records["Prediction"])
-    acc_test = acc_score(test_records["Decision"], test_records["Prediction"])
-
-    return model, f1_adapt, f1_test, acc_adapt, acc_test, total_nodes
-
-
 def run_repair(
     normative_model_path, dp, data_csv, target, adapt_fraction, split_method, split_seed,
     manifest_path, out_csv,
@@ -335,22 +264,6 @@ def run_repair(
             df_adapt_raw, df_test_raw, max_depth, rs_old, old_tree=old_tree,
         )
         cart_train_time_sec = time.perf_counter() - cart_start
-
-        cart_entropy_start = time.perf_counter()
-        (
-            cart_entropy_tree, f1_cart_entropy_adapt, f1_cart_entropy_test,
-            acc_cart_entropy_adapt, acc_cart_entropy_test, cart_entropy_total_nodes,
-            sim_old_cart_entropy, sim_old_cart_entropy_labeled, sim_old_cart_entropy_jaccard,
-            pct_reaudit_cart_entropy,
-        ) = build_cart_baseline(
-            df_adapt_raw, df_test_raw, max_depth, rs_old, old_tree=old_tree, criterion="entropy",
-        )
-        cart_entropy_train_time_sec = time.perf_counter() - cart_entropy_start
-
-        c45_start = time.perf_counter()
-        (c45_tree, f1_c45_adapt, f1_c45_test, acc_c45_adapt, acc_c45_test,
-         c45_total_nodes) = build_chefboost_baseline("C4.5", df_adapt_raw, df_test_raw, max_depth)
-        c45_train_time_sec = time.perf_counter() - c45_start
 
         j48_start = time.perf_counter()
         (
@@ -445,23 +358,6 @@ def run_repair(
                         "sim_old_cart_jaccard": round(sim_old_cart_jaccard, 4) if sim_old_cart_jaccard is not None else None,
                         "cart_train_time_sec": round(cart_train_time_sec, 6),
                         "rulesrepair_grow_time_sec": round(rulesrepair_grow_time_sec, 6),
-                        "f1_cart_entropy_adapt": f1_cart_entropy_adapt,
-                        "f1_cart_entropy_test": f1_cart_entropy_test,
-                        "acc_cart_entropy_adapt": acc_cart_entropy_adapt,
-                        "acc_cart_entropy_test": acc_cart_entropy_test,
-                        "cart_entropy_total_nodes": cart_entropy_total_nodes,
-                        "cart_entropy_pct_to_reaudit": 100.0 if cart_entropy_tree is not None else None,
-                        "pct_reaudit_cart_entropy": pct_reaudit_cart_entropy,
-                        "sim_old_cart_entropy": round(sim_old_cart_entropy, 4) if sim_old_cart_entropy is not None else None,
-                        "sim_old_cart_entropy_labeled": round(sim_old_cart_entropy_labeled, 4) if sim_old_cart_entropy_labeled is not None else None,
-                        "sim_old_cart_entropy_jaccard": round(sim_old_cart_entropy_jaccard, 4) if sim_old_cart_entropy_jaccard is not None else None,
-                        "cart_entropy_train_time_sec": round(cart_entropy_train_time_sec, 6),
-                        "f1_c45_adapt": f1_c45_adapt,
-                        "f1_c45_test": f1_c45_test,
-                        "acc_c45_adapt": acc_c45_adapt,
-                        "acc_c45_test": acc_c45_test,
-                        "c45_total_nodes": c45_total_nodes,
-                        "c45_train_time_sec": round(c45_train_time_sec, 6),
                         "f1_j48_adapt": f1_j48_adapt,
                         "f1_j48_test": f1_j48_test,
                         "acc_j48_adapt": acc_j48_adapt,

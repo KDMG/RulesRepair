@@ -52,6 +52,8 @@ If the required files already exist in `<dataset>_cut/` and `decision_points/`, 
 
 The following commands reproduce the quantitative analyses reported in the paper.
 
+Every command below is run once per dataset. Most write their output under `evaluation/quantitative/<dataset>/...` by default; the exceptions are noted below.
+
 ### Computational Time
 
 ```bash
@@ -59,10 +61,10 @@ poetry run python -m analysis.core.computational_time \
     experiments/<dataset>/repair/seed_*/*/mutated/results.csv
 ```
 
-The command reports the mean, median, and standard deviation of the training time for RulesRepair and each baseline. Results are provided overall, by mutation type, and by decision point, and are saved under:
+For each trial, the command computes the difference between RulesRepair's total time (summed over its whole w_simp x w_simi grid for that trial) and the fastest baseline's ("Mine") single fit time (the minimum among CART/C4.5/REPTree). It reports the mean and standard deviation of this difference, aggregated by dataset only, and saves the result under:
 
 ```text
-evaluation/quantitative/timing/
+evaluation/quantitative/<dataset>/timing/time_delta_overall.csv
 ```
 
 ### RQ1 — Dominance over the Baselines
@@ -70,21 +72,36 @@ evaluation/quantitative/timing/
 Run:
 
 ```bash
-poetry run python -m analysis.rq1 cart-summary \
-    experiments/<dataset>/repair/seed_*/*/mutated/analysis/pareto_per_trial.csv \
-    -out-csv evaluation/quantitative/rq1/summary_<dataset>.csv
+poetry run python -m analysis.rq1 dominance-summary \
+    experiments/<dataset>/repair/seed_*/*/mutated/analysis/pareto_per_trial.csv
 ```
 
 and:
 
 ```bash
 poetry run python -m analysis.rq1 dominance-advantage \
-    experiments/<dataset>/repair/seed_*/*/mutated/analysis/pareto_per_trial.csv \
-    --group-summary-out evaluation/quantitative/rq1/group_summary_<dataset>.csv \
-    --mutation-summary-out evaluation/quantitative/rq1/mutation_summary_<dataset>.csv
+    experiments/<dataset>/repair/seed_*/*/mutated/analysis/pareto_per_trial.csv
 ```
 
-Both commands report results overall and broken down by decision point and mutation type.
+`dominance-summary` reports, for each Mine algorithm (CART/C4.5/REPTree), the percentage of times that at in which that baseline dominates at least one point of RulesRepair's Pareto front, aggregated by dataset, by decision point x mutation type, and by mutation type. `dominance-advantage` reports, for the trials where a baseline does dominate, the size of the accuracy/simplicity/similarity gap (median [Q1, Q3] of the per-trial median delta), aggregated the same three ways. Both save under `evaluation/quantitative/<dataset>/rq1/dominance_summary/` and `evaluation/quantitative/<dataset>/rq1/dominance_advantage/` respectively by default.
+
+Once `dominance-summary` has been run for every dataset, combine the per-dataset `dominance_by_dataset.csv` files into the paper table:
+
+```bash
+poetry run python -m analysis.rq1 dominance-summary \
+    -combine evaluation/quantitative/*/rq1/dominance_summary/dominance_by_dataset.csv
+```
+
+This writes the combined CSV and LaTeX table to `evaluation/quantitative/rq1/dominance_summary/dominance_frequency_table.csv`/`.tex`.
+
+Once `dominance-advantage` has been run for every dataset, combine the per-dataset `dominance_advantage_by_dataset.csv` files into the paper table:
+
+```bash
+poetry run python -m analysis.rq1 dominance-advantage \
+    -combine evaluation/quantitative/*/rq1/dominance_advantage/dominance_advantage_by_dataset.csv
+```
+
+This writes the combined CSV and LaTeX table to `evaluation/quantitative/rq1/dominance_advantage/dominance_magnitude_table.csv`/`.tex`.
 
 ### RQ2 — Statistical Significance against the Baselines
 
@@ -94,13 +111,64 @@ Run:
 poetry run python -m analysis.rq2.statistical rq-table \
     experiments/<dataset>/repair/seed_*/*/mutated/analysis/pareto_per_trial.csv \
     --dataset <dataset> \
-    --trial-level \
-    --out-dir evaluation/quantitative/rq2
+    --trial-level
 ```
 
-The command generates one table per decision point, containing an `overall` row and one row for each mutation type.
+The command generates one table per decision point, containing an `overall` row and one row for each mutation type, saved under `evaluation/quantitative/<dataset>/rq2/rq_table/`. This compares RulesRepair against CART only.
 
 To obtain results pooled into one row per dataset, add the `--by-dataset` option.
+
+Once `rq-table` has been run for every dataset, combine the per-dataset CSVs into the paper table with `--combine`:
+
+```bash
+poetry run python -m analysis.rq2.statistical rq-table \
+    --combine evaluation/quantitative/*/rq2/rq_table/rq_unified_trial_level_*.csv
+```
+
+For the paper table comparing RulesRepair against all three baselines (CART, C4.5, REPTree) at once, use `multi-baseline-table` instead, run once per dataset:
+
+```bash
+poetry run python -m analysis.rq2.statistical multi-baseline-table \
+    experiments/<dataset>/repair/seed_*/*/mutated/analysis/pareto_per_trial.csv \
+    --dataset <dataset> \
+    --trial-level --by-dataset
+```
+
+Saved under `evaluation/quantitative/<dataset>/rq2/multi_baseline_table/`.
+
+Each dataset's `p_holm` at this point only corrects for that dataset/view's own test, not for the fact that CART, C4.5 and REPTree are three comparisons against the same cell. Once `multi-baseline-table` has been run for every dataset, get the final paper table by running `holm-table` on the per-dataset CSVs, which re-applies Holm-Bonferroni correction across the three baselines within each (dataset, view) group:
+
+```bash
+poetry run python -m analysis.rq2.statistical holm-table \
+    evaluation/quantitative/*/rq2/multi_baseline_table/rq_unified_trial_level_by_dataset_*.csv
+```
+
+This writes the Hodges–Lehmann paper table (with the corrected significance markers) to `evaluation/quantitative/rq2/holm_table/rq_unified_trial_level_by_dataset_holm_corrected.csv`/`.tex`.
+
+(`multi-baseline-table` also has its own `--combine` flag, which merges the per-dataset CSVs into the same table shape without the cross-baseline correction -- useful for a quick preview, but `holm-table` is the correct final step for the paper.)
+
+### RQ2 — Attainment Figures
+
+Run once per dataset to compute the attainment fields:
+
+```bash
+poetry run python -m analysis.rq2.attainment_figures outputs \
+    experiments/<dataset>/repair/seed_*/*/mutated/analysis/pareto_per_trial.csv \
+    --dataset <dataset>
+```
+
+Saved under `evaluation/quantitative/<dataset>/rq2/attainment_outputs/`.
+
+To render the figures for one dataset, pooled across every decision point:
+
+```bash
+poetry run python -m analysis.rq2.attainment_figures render-figures \
+    --dataset <dataset> \
+    --pareto-csvs experiments/<dataset>/repair/seed_*/*/mutated/analysis/pareto_per_trial.csv \
+    --dataset-level
+```
+
+Saved under `evaluation/quantitative/<dataset>/rq2/render_figures/`, as two PNGs: `..._ALL_DPS_all_CART.png` (the accuracy-level slices, at Q1/median/Q3) and `..._ALL_DPS_diff_CART.png` (the attainment-difference slices). Use `--baseline-label`/`--baseline-acc-col`/`--baseline-nodes-col`/`--baseline-jaccard-col` to compare against C4.5 or REPTree instead of CART. See `--help` for the per-decision-point and representative-decision-point rendering modes (`--all-dps`, and the default mode driven by `rq_table_csvs`).
 
 ## Qualitative Evaluation
 

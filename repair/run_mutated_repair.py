@@ -15,7 +15,7 @@ from repair.run_perturbation_experiment import split_adapt_test
 from repair.run_perturbation_repair import (
     SKLEARN_GROW_FUNC_MIN_SAMPLES_LEAF,
     predict, f1_macro, acc_score, count_nodes, count_new_nodes, load_xy,
-    build_cart_baseline, build_chefboost_baseline, extend_columns_for_regrow,
+    build_cart_baseline, extend_columns_for_regrow,
     build_j48_pair_baseline, build_reptree_baseline,
 )
 from mutations.mutation_sampling import (
@@ -41,12 +41,6 @@ RESULTS_COLUMNS = [
     "cart_total_nodes", "cart_pct_to_reaudit",
     "sim_old_cart", "sim_old_cart_labeled", "sim_old_cart_jaccard",
     "cart_train_time_sec", "rulesrepair_grow_time_sec",
-    "f1_cart_entropy_adapt", "f1_cart_entropy_test", "acc_cart_entropy_adapt", "acc_cart_entropy_test",
-    "cart_entropy_total_nodes", "cart_entropy_pct_to_reaudit",
-    "sim_old_cart_entropy", "sim_old_cart_entropy_labeled", "sim_old_cart_entropy_jaccard",
-    "cart_entropy_train_time_sec",
-    "f1_c45_adapt", "f1_c45_test", "acc_c45_adapt", "acc_c45_test",
-    "c45_total_nodes", "c45_train_time_sec",
     "f1_j48_adapt", "f1_j48_test", "acc_j48_adapt", "acc_j48_test",
     "j48_total_nodes", "j48_pct_to_reaudit", "pct_reaudit_j48",
     "sim_old_j48", "sim_old_j48_labeled", "sim_old_j48_jaccard", "j48_train_time_sec",
@@ -75,19 +69,6 @@ def _fit_or_load_baseline_trees(df_adapt_raw, df_test_raw, max_depth, rs_true_ol
     ) = build_cart_baseline(df_adapt_raw, df_test_raw, max_depth, rs_true_old)
     cart_train_time_sec = time.perf_counter() - cart_start
 
-    cart_entropy_start = time.perf_counter()
-    (
-        cart_entropy_tree, f1_cart_entropy_adapt, f1_cart_entropy_test,
-        acc_cart_entropy_adapt, acc_cart_entropy_test, cart_entropy_total_nodes,
-        _unused_sim_e, _unused_sim_e_labeled, _unused_sim_e_jaccard, _unused_pct_reaudit_cart_e,
-    ) = build_cart_baseline(df_adapt_raw, df_test_raw, max_depth, rs_true_old, criterion="entropy")
-    cart_entropy_train_time_sec = time.perf_counter() - cart_entropy_start
-
-    c45_start = time.perf_counter()
-    (c45_tree, f1_c45_adapt, f1_c45_test, acc_c45_adapt, acc_c45_test,
-     c45_total_nodes) = build_chefboost_baseline("C4.5", df_adapt_raw, df_test_raw, max_depth)
-    c45_train_time_sec = time.perf_counter() - c45_start
-
     j48_start = time.perf_counter()
     (
         (j48_tree, f1_j48_adapt, f1_j48_test, acc_j48_adapt, acc_j48_test, j48_total_nodes,
@@ -109,13 +90,6 @@ def _fit_or_load_baseline_trees(df_adapt_raw, df_test_raw, max_depth, rs_true_ol
         "cart_tree": cart_tree, "f1_cart_adapt": f1_cart_adapt, "f1_cart_test": f1_cart_test,
         "acc_cart_adapt": acc_cart_adapt, "acc_cart_test": acc_cart_test, "cart_total_nodes": cart_total_nodes,
         "cart_train_time_sec": cart_train_time_sec,
-        "cart_entropy_tree": cart_entropy_tree, "f1_cart_entropy_adapt": f1_cart_entropy_adapt,
-        "f1_cart_entropy_test": f1_cart_entropy_test, "acc_cart_entropy_adapt": acc_cart_entropy_adapt,
-        "acc_cart_entropy_test": acc_cart_entropy_test, "cart_entropy_total_nodes": cart_entropy_total_nodes,
-        "cart_entropy_train_time_sec": cart_entropy_train_time_sec,
-        "f1_c45_adapt": f1_c45_adapt, "f1_c45_test": f1_c45_test,
-        "acc_c45_adapt": acc_c45_adapt, "acc_c45_test": acc_c45_test, "c45_total_nodes": c45_total_nodes,
-        "c45_train_time_sec": c45_train_time_sec,
         "j48_tree": j48_tree, "f1_j48_adapt": f1_j48_adapt, "f1_j48_test": f1_j48_test,
         "acc_j48_adapt": acc_j48_adapt, "acc_j48_test": acc_j48_test, "j48_total_nodes": j48_total_nodes,
         "j48_unbounded_tree": j48_unbounded_tree, "f1_j48_unbounded_adapt": f1_j48_unbounded_adapt,
@@ -138,7 +112,7 @@ def _fit_or_load_baseline_trees(df_adapt_raw, df_test_raw, max_depth, rs_true_ol
         finally:
             sys.setrecursionlimit(old_limit)
         tmp_path.replace(cache_path)
-        print(f"Baseline-tree cache miss, fit CART/CART-entropy/C4.5/J48(bounded+unbounded)/"
+        print(f"Baseline-tree cache miss, fit CART/J48(bounded+unbounded)/"
               f"REPTree fresh and saved to {cache_path} for reuse by later --seed runs "
               f"of this same dp.", flush=True)
 
@@ -209,19 +183,6 @@ def run_mutated_repair(
         _bt["acc_cart_test"], _bt["cart_total_nodes"], _bt["cart_train_time_sec"],
     )
     rs_cart = tuple_tree_conversion(cart_tree) if cart_tree is not None else None
-
-    (cart_entropy_tree, f1_cart_entropy_adapt, f1_cart_entropy_test, acc_cart_entropy_adapt,
-     acc_cart_entropy_test, cart_entropy_total_nodes, cart_entropy_train_time_sec) = (
-        _bt["cart_entropy_tree"], _bt["f1_cart_entropy_adapt"], _bt["f1_cart_entropy_test"],
-        _bt["acc_cart_entropy_adapt"], _bt["acc_cart_entropy_test"], _bt["cart_entropy_total_nodes"],
-        _bt["cart_entropy_train_time_sec"],
-    )
-    rs_cart_entropy = tuple_tree_conversion(cart_entropy_tree) if cart_entropy_tree is not None else None
-
-    (f1_c45_adapt, f1_c45_test, acc_c45_adapt, acc_c45_test, c45_total_nodes, c45_train_time_sec) = (
-        _bt["f1_c45_adapt"], _bt["f1_c45_test"], _bt["acc_c45_adapt"],
-        _bt["acc_c45_test"], _bt["c45_total_nodes"], _bt["c45_train_time_sec"],
-    )
 
     (j48_tree, f1_j48_adapt, f1_j48_test, acc_j48_adapt, acc_j48_test, j48_total_nodes,
      j48_unbounded_tree, f1_j48_unbounded_adapt, f1_j48_unbounded_test, acc_j48_unbounded_adapt,
@@ -344,14 +305,6 @@ def run_mutated_repair(
                 mark_reaudit_nodes(mutant_tree, cart_tree)
                 _, _, pct_reaudit_cart = reaudit_summary(cart_tree)
 
-            sim_old_cart_entropy = rule_set_similarity(rs_mutant, rs_cart_entropy) if rs_cart_entropy is not None else None
-            sim_old_cart_entropy_labeled = rule_set_similarity_labeled(rs_mutant, rs_cart_entropy) if rs_cart_entropy is not None else None
-            sim_old_cart_entropy_jaccard = jaccard_rule_set_similarity(rs_mutant, rs_cart_entropy) if rs_cart_entropy is not None else None
-            pct_reaudit_cart_entropy = None
-            if cart_entropy_tree is not None:
-                mark_reaudit_nodes(mutant_tree, cart_entropy_tree)
-                _, _, pct_reaudit_cart_entropy = reaudit_summary(cart_entropy_tree)
-
             sim_old_j48 = rule_set_similarity(rs_mutant, rs_j48) if rs_j48 is not None else None
             sim_old_j48_labeled = rule_set_similarity_labeled(rs_mutant, rs_j48) if rs_j48 is not None else None
             sim_old_j48_jaccard = jaccard_rule_set_similarity(rs_mutant, rs_j48) if rs_j48 is not None else None
@@ -453,23 +406,6 @@ def run_mutated_repair(
                             "sim_old_cart_jaccard": round(sim_old_cart_jaccard, 4) if sim_old_cart_jaccard is not None else None,
                             "cart_train_time_sec": round(cart_train_time_sec, 6),
                             "rulesrepair_grow_time_sec": round(rulesrepair_grow_time_sec, 6),
-                            "f1_cart_entropy_adapt": f1_cart_entropy_adapt,
-                            "f1_cart_entropy_test": f1_cart_entropy_test,
-                            "acc_cart_entropy_adapt": acc_cart_entropy_adapt,
-                            "acc_cart_entropy_test": acc_cart_entropy_test,
-                            "cart_entropy_total_nodes": cart_entropy_total_nodes,
-                            "cart_entropy_pct_to_reaudit": 100.0 if cart_entropy_tree is not None else None,
-                            "pct_reaudit_cart_entropy": pct_reaudit_cart_entropy,
-                            "sim_old_cart_entropy": round(sim_old_cart_entropy, 4) if sim_old_cart_entropy is not None else None,
-                            "sim_old_cart_entropy_labeled": round(sim_old_cart_entropy_labeled, 4) if sim_old_cart_entropy_labeled is not None else None,
-                            "sim_old_cart_entropy_jaccard": round(sim_old_cart_entropy_jaccard, 4) if sim_old_cart_entropy_jaccard is not None else None,
-                            "cart_entropy_train_time_sec": round(cart_entropy_train_time_sec, 6),
-                            "f1_c45_adapt": f1_c45_adapt,
-                            "f1_c45_test": f1_c45_test,
-                            "acc_c45_adapt": acc_c45_adapt,
-                            "acc_c45_test": acc_c45_test,
-                            "c45_total_nodes": c45_total_nodes,
-                            "c45_train_time_sec": round(c45_train_time_sec, 6),
                             "f1_j48_adapt": f1_j48_adapt,
                             "f1_j48_test": f1_j48_test,
                             "acc_j48_adapt": acc_j48_adapt,

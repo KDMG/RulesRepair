@@ -163,12 +163,6 @@ cython_debug/
 
 input/.DS_Store
 
-# chefboost fit() scratch dir (rules.py output + cross-process lock file,
-# repair/run_perturbation_repair.py) -- chefboost hardcodes writing to
-# <cwd>/outputs/, so we chdir it into this dedicated folder instead of the
-# repo root.
-.chefboost_scratch/
-
 # --- 2026, GitHub-based code sync (Mac <-> potena01/02/03) ---
 # Git repo (chiaragii/repair_with_data) carries CODE ONLY. Everything below is
 # either (a) too large for a normal git push (GitHub's hard per-file limit is
@@ -183,7 +177,7 @@ experiments/*/repair/
 experiments.zip
 normative_model*.pkl
 !evaluation/qualitative/*.pkl
-quantitative_evaluation/
+evaluation/quantitative/
 *_tree_cache/
 n*.log
 sepsis_repair.log

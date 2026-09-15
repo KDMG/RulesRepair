@@ -157,7 +157,7 @@ def main():
     parser.add_argument(
         "--baseline-tree-cache-dir", default=None,
         help="2026 addition: forwarded to run_mutated_repair.py's --baseline-tree-cache-dir -- "
-             "caches the once-per-dp CART/CART-entropy/C4.5/J48(bounded+unbounded)/REPTree "
+             "caches the once-per-dp CART/C4.5(bounded+unbounded)/REPTree "
              "fits so a --seed sweep over the same dp fits them only once. See that script's "
              "own --help for details.",
     )

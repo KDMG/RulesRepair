@@ -255,7 +255,7 @@ def main_multi_baseline(argv=None):
     parser.add_argument("--out-csv", default=None)
     args = parser.parse_args(argv)
 
-    _default_dir = Path("quantitative_evaluation") / "rq1" / "multi_baseline"
+    _default_dir = Path("evaluation") / "quantitative" / "rq1" / "multi_baseline"
     _default_dir.mkdir(parents=True, exist_ok=True)
     if args.raw_out is None:
         args.raw_out = str(_default_dir / "raw_trials.csv")
