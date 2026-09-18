@@ -20,10 +20,10 @@ def _filter_out_w_simp_values(paths, excluded_w_simps, tmp_dir):
         orig = Path(p)
         seed_match = re.search(r"seed_(\d+)", str(orig))
         if seed_match is None:
-            raise ValueError(f"{p}: no 'seed_<N>' segment found -- cannot mirror path for filtering.")
+            raise ValueError(f"")
         if not (orig.parent.name == "analysis" and orig.parent.parent.name in ("mutated", "baseline")):
             raise ValueError(
-                f"{p}: expected .../<dp>/{{mutated,baseline}}/analysis/{orig.name} shape -- got {orig}."
+                f"{p}: expected .../<dp>/{{mutated,baseline}}/analysis/{orig.name} shape, got {orig}."
             )
         dp_name = orig.parent.parent.parent.name
         scenario = orig.parent.parent.name
@@ -54,14 +54,9 @@ DEFAULT_MULTI_BASELINES = [
 def main_multi_baseline_table(argv=None):
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument(
-        "paths", nargs="+",
-        help="pareto_per_trial.csv paths for ONE dataset (glob-expanded by your shell, one or more "
-             "decision points x seeds -- same seed_<N> contract as the rest of this pipeline).",
-    )
+        "paths", nargs="+")
     parser.add_argument(
-        "--dataset", default=None,
-        help="Dataset label (e.g. sepsis, hospital_billing, road_traffic) -- used as the 'dataset' "
-             "column value and in the output filenames. Required unless --combine is given.",
+        "--dataset", default=None
     )
     parser.add_argument("--max-depth", type=int, default=DEFAULT_MAX_DEPTH)
     parser.add_argument("--nodes-min", type=int, default=DEFAULT_NODES_MIN)
@@ -88,10 +83,7 @@ def main_multi_baseline_table(argv=None):
         "--exclude-w-simp-grid-values", default=None
     )
     parser.add_argument(
-        "--combine", action="store_true",
-        help="paths are per-dataset rq_unified_trial_level_by_dataset_<dataset>.csv files (from previous "
-             "--by-dataset --trial-level runs) instead of pareto_per_trial.csv files; combine them into "
-             "the single cross-dataset paper table.",
+        "--combine", action="store_true"
     )
     args = parser.parse_args(argv)
 
@@ -137,8 +129,8 @@ def main_multi_baseline_table(argv=None):
     print(f"Loaded {len(args.paths)} input CSV(s) for dataset={args.dataset}.")
     print(
         f"Computing against {len(DEFAULT_MULTI_BASELINES)} baselines: {baseline_names}."
-        + ("  (Supplementary, TRIAL-LEVEL -- no per-seed aggregation)" if args.trial_level else "")
-        + (f"  (Supplementary, EXCLUDING w_simp={excluded_w_simps} from the Pareto front)" if excluded_w_simps else "")
+        + ("" if args.trial_level else "")
+        + (f"" if excluded_w_simps else "")
     )
 
     input_paths = args.paths
@@ -166,7 +158,7 @@ def main_multi_baseline_table(argv=None):
         caption_parts.append(
             f"excluding w_simp={excluded_w_simps}"
         )
-    caption = "RQ1+RQ2" + ((" -- " + " ".join(caption_parts)) if caption_parts else "")
+    caption = "RQ1+RQ2" + ((" " + " ".join(caption_parts)) if caption_parts else "")
     if caption_parts:
         caption += " See the full-grid table for the validated RQ1/RQ2 result."
 

@@ -6,8 +6,8 @@ from scipy.stats import norm, wilcoxon
 
 from analysis.core.compare_rulesrepair_cart_dominance import (
     DEFAULT_MAX_DEPTH, DEFAULT_NODES_MIN, DEFAULT_TOL,
-    _effect_size_label, _holm_bonferroni, infer_dp_label, infer_seed_from_path,
-    nodes_bounds, normalize_point, rank_biserial_correlation,
+    _holm_bonferroni, infer_dp_label, infer_seed_from_path,
+    nodes_bounds, normalize_point,
 )
 from analysis.core.mutation_types import MUTATION_TYPES, filter_by_mutation_type
 from analysis.core.pareto_analysis import compute_pareto_front
@@ -77,28 +77,6 @@ def hodges_lehmann_paired(diffs, confidence_level=0.95):
     if ci_low > ci_high:
         ci_low, ci_high = ci_high, ci_low
     return estimate, float(ci_low), float(ci_high), n
-
-
-def cohens_d_z(diffs):
-    d = [x for x in diffs if not (isinstance(x, float) and math.isnan(x))]
-    n = len(d)
-    if n < 2:
-        return None
-    std = float(np.std(d, ddof=1))
-    if std == 0:
-        return None
-    return float(np.mean(d) / std)
-
-
-def cohens_d_z_diagnostics(diffs, sd_zero_tol=DEFAULT_TOL):
-    d = [x for x in diffs if not (isinstance(x, float) and math.isnan(x))]
-    n = len(d)
-    if n < 2:
-        return {"cohens_dz_raw": None, "cohens_dz_status": None, "diff_mean": None, "diff_sd": None}
-    mean = float(np.mean(d))
-    std = float(np.std(d, ddof=1))
-    status = "near_zero_sd" if std <= sd_zero_tol else "regular"
-    return {"cohens_dz_raw": cohens_d_z(d), "cohens_dz_status": status, "diff_mean": mean, "diff_sd": std}
 
 
 def per_trial_normalized_sets(df, max_depth=DEFAULT_MAX_DEPTH, nodes_min=DEFAULT_NODES_MIN, tol=DEFAULT_TOL,
@@ -267,10 +245,7 @@ def decision_point_igd_test(seed_table, alpha=0.05, sd_zero_tol=DEFAULT_TOL, bas
         wilcoxon_stat, p_raw = float(result.statistic), float(result.pvalue)
     p_holm = _holm_bonferroni([p_raw])[0] if p_raw is not None else None
 
-    r, _r_n = rank_biserial_correlation(diffs)
     hl_estimate, hl_low, hl_high, _hl_n = hodges_lehmann_paired(diffs)
-    d_z = cohens_d_z(diffs)
-    dz_diag = cohens_d_z_diagnostics(diffs, sd_zero_tol=sd_zero_tol)
 
     if p_holm is not None and p_holm < alpha and hl_estimate is not None:
         winner = "RulesRepair" if hl_estimate > 0 else baseline_label
@@ -283,15 +258,9 @@ def decision_point_igd_test(seed_table, alpha=0.05, sd_zero_tol=DEFAULT_TOL, bas
         "wilcoxon_statistic": wilcoxon_stat,
         "wilcoxon_p": p_raw,
         "p_holm": p_holm,
-        "rank_biserial_r": r,
-        "rank_biserial_label": _effect_size_label(r),
         "hodges_lehmann": hl_estimate,
         "hl_ci_low": hl_low,
         "hl_ci_high": hl_high,
-        "cohens_d_z": d_z,
-        "cohens_dz_status": dz_diag["cohens_dz_status"],
-        "diff_mean": dz_diag["diff_mean"],
-        "diff_sd": dz_diag["diff_sd"],
         "winner": winner,
         "median_igd_rulesrepair": float(seed_table["igd_rulesrepair_seed"].median()) if n else None,
         "median_igd_baseline": float(seed_table["igd_baseline_seed"].median()) if n else None,
@@ -324,14 +293,9 @@ def print_decision_point_result(dp_label, result, trial_level=False):
         f"[{result['hl_ci_low']:+.4f}, {result['hl_ci_high']:+.4f}]"
         if result["hl_ci_low"] is not None else "n/a"
     )
-    dz_text = f"{result['cohens_d_z']:+.4f}" if result["cohens_d_z"] is not None else "n/a"
-    r_text = (
-        f"{result['rank_biserial_r']:+.3f} ({result['rank_biserial_label']})"
-        if result["rank_biserial_r"] is not None else "n/a"
-    )
     print(
         f"  comparison={result['comparison']}  Wilcoxon p={result['wilcoxon_p']:.4g}  Holm p={result['p_holm']:.4g}  "
-        f"r_rb={r_text}  Hodges-Lehmann={hl_text}  HL 95% CI={ci_text}  Cohen's d_z={dz_text}  "
+        f"Hodges-Lehmann={hl_text}  HL 95% CI={ci_text}  "
         f"winner={result['winner']}"
     )
 
@@ -347,10 +311,7 @@ def decision_point_igd_test_trial_level(trial_table, alpha=0.05, sd_zero_tol=DEF
         wilcoxon_stat, p_raw = float(result.statistic), float(result.pvalue)
     p_holm = _holm_bonferroni([p_raw])[0] if p_raw is not None else None
 
-    r, _r_n = rank_biserial_correlation(diffs)
     hl_estimate, hl_low, hl_high, _hl_n = hodges_lehmann_paired(diffs)
-    d_z = cohens_d_z(diffs)
-    dz_diag = cohens_d_z_diagnostics(diffs, sd_zero_tol=sd_zero_tol)
 
     if p_holm is not None and p_holm < alpha and hl_estimate is not None:
         winner = "RulesRepair" if hl_estimate > 0 else baseline_label
@@ -364,15 +325,9 @@ def decision_point_igd_test_trial_level(trial_table, alpha=0.05, sd_zero_tol=DEF
         "wilcoxon_statistic": wilcoxon_stat,
         "wilcoxon_p": p_raw,
         "p_holm": p_holm,
-        "rank_biserial_r": r,
-        "rank_biserial_label": _effect_size_label(r),
         "hodges_lehmann": hl_estimate,
         "hl_ci_low": hl_low,
         "hl_ci_high": hl_high,
-        "cohens_d_z": d_z,
-        "cohens_dz_status": dz_diag["cohens_dz_status"],
-        "diff_mean": dz_diag["diff_mean"],
-        "diff_sd": dz_diag["diff_sd"],
         "winner": winner,
         "median_igd_rulesrepair": float(trial_table["igd_rulesrepair_trial"].median()) if n else None,
         "median_igd_baseline": float(trial_table["igd_baseline_trial"].median()) if n else None,

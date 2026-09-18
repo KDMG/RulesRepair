@@ -87,7 +87,7 @@ def build_dominance_frequency_latex(table, ordered_datasets):
     lines = []
     lines.append(backslash + "begin{table}[tb]")
     lines.append(backslash + "centering")
-    lines.append(backslash + "large")
+    lines.append(backslash + "normalsize")
     lines.append(backslash + "resizebox{" + backslash + "textwidth}{!}{%")
     lines.append(backslash + "begin{tabular}{" + col_spec + "}")
     lines.append(backslash + "toprule")

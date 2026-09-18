@@ -103,7 +103,12 @@ def compute_baseline_point_for_tree_isolated(prefix, base_tree, df_adapt_raw, df
 
 
 
-def _find_offline_shared_train(dp_name):
+def _find_offline_shared_train(dp_name, dataset_name=None):
+    if dataset_name:
+        matches = sorted(REPO_ROOT.glob(f"experiments/{dataset_name}/repair/seed_*/{dp_name}/mutated/shared_train.csv"))
+        if matches:
+            return matches[0]
+        return None
     matches = sorted(REPO_ROOT.glob(f"experiments/*/repair/seed_*/{dp_name}/mutated/shared_train.csv"))
     if not matches:
         return None
@@ -114,7 +119,12 @@ def _find_offline_shared_train(dp_name):
 
 
 
-def _find_offline_shared_test(dp_name):
+def _find_offline_shared_test(dp_name, dataset_name=None):
+    if dataset_name:
+        matches = sorted(REPO_ROOT.glob(f"experiments/{dataset_name}/repair/seed_*/{dp_name}/mutated/shared_test.csv"))
+        if matches:
+            return matches[0]
+        return None
     matches = sorted(REPO_ROOT.glob(f"experiments/*/repair/seed_*/{dp_name}/mutated/shared_test.csv"))
     if not matches:
         return None
@@ -125,14 +135,14 @@ def _find_offline_shared_test(dp_name):
 
 
 
-def prepare_normative_base(dp_name, model, observations):
+def prepare_normative_base(dp_name, model, observations, dataset_name=None):
     if model is None:
         raise MissingDataError("No model loaded.")
     entry = model.get(dp_name)
     if entry is None or entry.get("tree") is None:
         raise MissingDataError(f"'{dp_name}' has no tree in the loaded model.")
 
-    offline_path = _find_offline_shared_train(dp_name)
+    offline_path = _find_offline_shared_train(dp_name, dataset_name=dataset_name)
     if offline_path is not None:
         df_adapt = pd.read_csv(offline_path)
         return entry["tree"], df_adapt

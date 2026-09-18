@@ -1,5 +1,5 @@
-"""RQ2 statistical significance testing: paired Wilcoxon/Hodges-Lehmann/
-Cohen's d_z on per-seed IGD+ (RulesRepair vs a baseline).
+"""RQ2 statistical significance testing: paired Wilcoxon/Hodges-Lehmann
+on per-seed IGD+ (RulesRepair vs a baseline).
 
 Sub-commands (run via `python -m analysis.rq2.statistical <command>`):
   rq-table               unified RQ1+RQ2 LaTeX table (one baseline)

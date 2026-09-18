@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import pandas as pd
-from scipy.stats import binomtest, rankdata
+from scipy.stats import binomtest
 
 DEFAULT_TOL = 1e-9
 DEFAULT_MAX_DEPTH = 4
@@ -297,31 +297,6 @@ def infer_seed_from_path(csv_path):
     import re
     match = re.search(r"seed_(\d+)", str(csv_path))
     return int(match.group(1)) if match else None
-
-
-def rank_biserial_correlation(diffs):
-    nonzero = [d for d in diffs if d != 0]
-    n = len(nonzero)
-    if n == 0:
-        return None, 0
-    abs_ranks = rankdata([abs(d) for d in nonzero], method="average")
-    r_plus = float(sum(rk for rk, d in zip(abs_ranks, nonzero) if d > 0))
-    r_minus = float(sum(rk for rk, d in zip(abs_ranks, nonzero) if d < 0))
-    r = (r_plus - r_minus) / (r_plus + r_minus)
-    return r, n
-
-
-def _effect_size_label(r):
-    if r is None:
-        return "n/a"
-    a = abs(r)
-    if a >= 0.5:
-        return "large"
-    if a >= 0.3:
-        return "medium"
-    if a >= 0.1:
-        return "small"
-    return "negligible"
 
 
 def _holm_bonferroni(pvalues):

@@ -68,7 +68,7 @@ class FrontExplorerScreen(QWidget):
         filters_layout = QFormLayout()
 
         self.min_acc_slider, self.min_acc_label = self._make_slider()
-        filters_layout.addRow("Accuracy min:", self._with_label(self.min_acc_slider, self.min_acc_label))
+        filters_layout.addRow("Fitness min:", self._with_label(self.min_acc_slider, self.min_acc_label))
 
         self.min_simpl_slider, self.min_simpl_label = self._make_slider()
         filters_layout.addRow("Simplicity min:", self._with_label(self.min_simpl_slider, self.min_simpl_label))
@@ -166,7 +166,7 @@ class FrontExplorerScreen(QWidget):
             return f"{v:.3f}" if v is not None else "--"
         return (
             '<span style="font-size:20pt;">'
-            f"Accuracy: {fmt(acc)}&nbsp;&nbsp;&nbsp;Simplicity: {fmt(simpl)}&nbsp;&nbsp;&nbsp;Similarity: {fmt(jac)}"
+            f"Fitness: {fmt(acc)}&nbsp;&nbsp;&nbsp;Simplicity: {fmt(simpl)}&nbsp;&nbsp;&nbsp;Similarity: {fmt(jac)}"
             "</span>"
         )
 
@@ -241,6 +241,7 @@ class FrontExplorerScreen(QWidget):
             return
         baseline = self.baseline_points.get(self.baseline_prefix)
         baseline_label = f"{backend.BASELINE_LABELS[self.baseline_prefix]} (rediscovering)"
+        baseline_below_threshold = False
         if baseline is not None:
             min_acc = self.min_acc_slider.value() / 100.0
             min_simpl = self.min_simpl_slider.value() / 100.0
@@ -250,7 +251,7 @@ class FrontExplorerScreen(QWidget):
                 or baseline["simplicity"] < min_simpl
                 or baseline["jaccard"] < min_jac
             ):
-                baseline = None
+                baseline_below_threshold = True
 
         self.ax_a.clear()
         self.ax_b.clear()
@@ -267,13 +268,17 @@ class FrontExplorerScreen(QWidget):
             )
 
         if baseline is not None:
+            baseline_alpha = 0.35 if baseline_below_threshold else 1.0
+            baseline_plot_label = f"{baseline_label} (not satisfying preferences)" if baseline_below_threshold else baseline_label
             self.ax_a.scatter(
                 [baseline["simplicity"]], [baseline["jaccard"]],
-                marker="*", s=220, c="#1565c0", edgecolors="black", label=baseline_label, zorder=5,
+                marker="*", s=220, c="#1565c0", edgecolors="black", alpha=baseline_alpha,
+                label=baseline_plot_label, zorder=5,
             )
             self.ax_b.scatter(
                 [baseline["simplicity"]], [baseline["accuracy_display"]],
-                marker="*", s=220, c="#1565c0", edgecolors="black", label=baseline_label, zorder=5,
+                marker="*", s=220, c="#1565c0", edgecolors="black", alpha=baseline_alpha,
+                label=baseline_plot_label, zorder=5,
             )
 
         if len(df) or baseline is not None:
@@ -286,7 +291,7 @@ class FrontExplorerScreen(QWidget):
         self.ax_a.set_ylim(-0.02, 1.02)
 
         self.ax_b.set_xlabel("Simplicity")
-        self.ax_b.set_ylabel("Accuracy")
+        self.ax_b.set_ylabel("Fitness")
         self.ax_b.set_xlim(-0.02, 1.02)
         self.ax_b.set_ylim(-0.02, 1.02)
 
@@ -374,7 +379,7 @@ class FrontExplorerScreen(QWidget):
         self.canvas.draw_idle()
 
         text = (
-            f"Accuracy: {row['accuracy_display']:.3f}\n"
+            f"Fitness: {row['accuracy_display']:.3f}\n"
             f"Simplicity: {row['simplicity']:.3f}\n"
             f"Similarity: {row['jaccard']:.3f}\n"
             f"Pareto: {'yes' if row['is_pareto'] else 'no'}"

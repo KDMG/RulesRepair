@@ -25,20 +25,15 @@ def _rq12_view_result(csv_paths, mutation_type, max_depth, nodes_min, tol, alpha
     if total_trials == 0:
         return {
             "rq12_not_applicable": True, "rq12_n_seeds": 0, "wilcoxon_p": None, "p_holm": None,
-            "rank_biserial_r": None, "rank_biserial_label": None, "hodges_lehmann": None,
-            "hl_ci_low": None, "hl_ci_high": None, "cohens_d_z": None,
-            "cohens_dz_raw": None, "cohens_dz_status": None, "diff_mean": None, "diff_sd": None,
+            "hodges_lehmann": None, "hl_ci_low": None, "hl_ci_high": None,
             "winner": None,
         }
     result = decision_point_igd_test(seed_table, alpha=alpha, sd_zero_tol=sd_zero_tol, baseline_label=baseline_label)
     return {
         "rq12_not_applicable": False, "rq12_n_seeds": result["n_seeds"],
         "wilcoxon_p": result["wilcoxon_p"], "p_holm": result["p_holm"],
-        "rank_biserial_r": result["rank_biserial_r"], "rank_biserial_label": result["rank_biserial_label"],
         "hodges_lehmann": result["hodges_lehmann"], "hl_ci_low": result["hl_ci_low"],
-        "hl_ci_high": result["hl_ci_high"], "cohens_d_z": result["cohens_d_z"],
-        "cohens_dz_raw": result["cohens_d_z"], "cohens_dz_status": result["cohens_dz_status"],
-        "diff_mean": result["diff_mean"], "diff_sd": result["diff_sd"],
+        "hl_ci_high": result["hl_ci_high"],
         "winner": result["winner"],
     }
 
@@ -47,9 +42,7 @@ def _rq12_view_result_from_trial_table(trial_table, alpha, sd_zero_tol, baseline
     if len(trial_table) == 0:
         return {
             "rq12_not_applicable": True, "rq12_n_trials": 0, "wilcoxon_p": None, "p_holm": None,
-            "rank_biserial_r": None, "rank_biserial_label": None, "hodges_lehmann": None,
-            "hl_ci_low": None, "hl_ci_high": None, "cohens_d_z": None,
-            "cohens_dz_raw": None, "cohens_dz_status": None, "diff_mean": None, "diff_sd": None,
+            "hodges_lehmann": None, "hl_ci_low": None, "hl_ci_high": None,
             "winner": None,
         }
     result = decision_point_igd_test_trial_level(
@@ -58,11 +51,8 @@ def _rq12_view_result_from_trial_table(trial_table, alpha, sd_zero_tol, baseline
     return {
         "rq12_not_applicable": False, "rq12_n_trials": result["n_trials"],
         "wilcoxon_p": result["wilcoxon_p"], "p_holm": result["p_holm"],
-        "rank_biserial_r": result["rank_biserial_r"], "rank_biserial_label": result["rank_biserial_label"],
         "hodges_lehmann": result["hodges_lehmann"], "hl_ci_low": result["hl_ci_low"],
-        "hl_ci_high": result["hl_ci_high"], "cohens_d_z": result["cohens_d_z"],
-        "cohens_dz_raw": result["cohens_d_z"], "cohens_dz_status": result["cohens_dz_status"],
-        "diff_mean": result["diff_mean"], "diff_sd": result["diff_sd"],
+        "hl_ci_high": result["hl_ci_high"],
         "winner": result["winner"],
     }
 
@@ -302,13 +292,15 @@ def _no_mutation_cell_text(value):
     return _fmt2(value)
 
 
-def _hl_cell_text(row, alpha):
+def _hl_cell_text(row, alpha, include_ci=True):
     if row is None or row["rq12_not_applicable"]:
         return "-"
     hl = row["hodges_lehmann"]
     if pd.isna(hl):
         return "--"
     lo, hi = row["hl_ci_low"], row["hl_ci_high"]
+    if not include_ci:
+        return _fmt2(hl)
     text = _fmt2(hl) if pd.isna(lo) else f"{_fmt2(hl)} [{_fmt2(lo)}, {_fmt2(hi)}]"
     p = row["p_holm"]
     if pd.notna(p) and p < alpha:
@@ -385,8 +377,7 @@ def unified_results_to_latex(df, alpha=0.05,
 def unified_results_to_latex_by_dataset(df, alpha=0.05, caption=None, label="tab:hodges"):
     if caption is None:
         caption = (
-            f"Hodges–Lehmann estimates with 95\\% confidence intervals. \\textsc{{RR}} denotes "
-            f"\\textsc{{RulesRepair}}, the symbol * indicates Holm-adjusted $p$-values $< {alpha:g}$."
+            f"Hodges–Lehmann estimates. \\textsc{{RR}} denotes \\textsc{{RulesRepair}}."
         )
     n_view_cols = len(VIEW_ORDER)
     lines = []
@@ -415,7 +406,7 @@ def unified_results_to_latex_by_dataset(df, alpha=0.05, caption=None, label="tab
             baseline_display = BASELINE_DISPLAY_BY_DATASET.get(baseline, baseline)
             baseline_text = f"\\textsc{{{_latex_escape(baseline_display)}}} vs \\textsc{{RR}}"
 
-            cell_texts = [_hl_cell_text(view_lookup.get(v), alpha) for v in VIEW_ORDER]
+            cell_texts = [_hl_cell_text(view_lookup.get(v), alpha, include_ci=False) for v in VIEW_ORDER]
             lines.append(f"{dataset_cell} & {baseline_text} & " + " & ".join(cell_texts) + " \\\\")
         lines.append("\\midrule")
 

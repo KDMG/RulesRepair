@@ -221,7 +221,9 @@ class PetriNetScreen(QWidget):
         self._open_dp_by_name(item.text())
 
     def _dataset_name(self):
-        path = self._current_log_path or self._current_pnml_path
+        if self._current_pnml_path:
+            return Path(self._current_pnml_path).parent.name
+        path = self._current_log_path
         if not path:
             return ""
         humanized = Path(path).stem.replace("_", " ").replace("-", " ").strip()

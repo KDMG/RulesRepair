@@ -102,7 +102,7 @@ class RuleSelectionScreen(QWidget):
         tree, source = backend.get_dp_tree(dp_name, dp_info, model)
 
         try:
-            base_tree, df_adapt = backend.prepare_normative_base(dp_name, model, observations)
+            base_tree, df_adapt = backend.prepare_normative_base(dp_name, model, observations, dataset_name=dataset_name)
         except backend.MissingDataError as exc:
             self.tree = tree
             self._df_adapt = None
@@ -116,7 +116,7 @@ class RuleSelectionScreen(QWidget):
             self.tree = base_tree
             self._df_adapt = df_adapt
             self._base_ready = True
-            test_path = backend._find_offline_shared_test(dp_name)
+            test_path = backend._find_offline_shared_test(dp_name, dataset_name=dataset_name)
             self._df_test = pd.read_csv(test_path) if test_path is not None else None
             test_note = f", {len(self._df_test)} held-out test row(s) found" if self._df_test is not None else ""
             self.source_label.setText(
