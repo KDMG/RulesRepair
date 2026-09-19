@@ -36,9 +36,9 @@ then run the quantitative and qualitative evaluation.
 For each command, replace `<dataset>` with the desired dataset name, e.g., `sepsis`. 
 The available datasets are listed in the [datasets](https://github.com/KDMG/RulesRepair/tree/main/datasets) folder.
 
-The experimental results and the evaluations reported in our paper are available in the 
-[experiments](https://github.com/KDMG/RulesRepair/tree/main/experiments) and 
-[evaluation](https://github.com/KDMG/RulesRepair/tree/main/evaluation) folders.
+The full experimental results reported in our paper  are available as zip archives in the 
+[Experimental results](https://github.com/KDMG/RulesRepair/releases) release, and the evaluations are available 
+in the [evaluation](https://github.com/KDMG/RulesRepair/tree/main/evaluation) folder.
 
 ### Running the Experimental Pipeline
 
