@@ -107,7 +107,7 @@ poetry run python -m analysis.rq2.statistical holm-table \
     evaluation/quantitative/*/rq2/multi_baseline_table/rq_unified_trial_level_by_dataset_*.csv
 ```
 
-### Attainment figures
+### Additional analysis - attainment figures
 
 Run once per dataset to compute the attainment fields:
 
