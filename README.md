@@ -142,6 +142,12 @@ poetry run python -m analysis.rq2.attainment_figures render-figures \
     --dataset-level
 ```
 
+For example, for sepsis:
+
+![sepsis attainment difference vs CART](evaluation/quantitative/sepsis/rq2/render_figures/rq3_figure_trial_level_sepsis_ALL_DPS_diff_CART.png)
+
+at a fixed level of accuracy, it is clear that RulesRepair can achieve better trade-offs than rediscovering with CART
+
 ## Qualitative Evaluation
 
 RulesRepair ships with an interactive **Pareto Front Explorer**.
