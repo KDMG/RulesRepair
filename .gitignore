@@ -175,6 +175,7 @@ input/.DS_Store
 decision_points/
 experiments/*/repair/
 experiments.zip
+experiments/*.zip
 normative_model*.pkl
 !evaluation/qualitative/*.pkl
 *_tree_cache/
