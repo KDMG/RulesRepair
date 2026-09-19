@@ -4,8 +4,8 @@
 When a process changes, the normative decision rules prescribed by domain experts have to be adapted. 
 Rediscovering the rules from scratch descards normative knowledge, including mandatory requirements.
 RulesRepair represents decision rules as decision trees, in line with the literature, and returns a Pareto repertoire 
-of repaired trees balancing **accuracy**, **simplicity**, and **similarity** to the original rule and preserving 
-normative requirements.
+of repaired trees balancing **accuracy**, **simplicity**, and **similarity** to the original rule and **preserving 
+normative requirements**.
 
 
 ## Requirements
