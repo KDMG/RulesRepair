@@ -1,6 +1,4 @@
-# RulesRepair
-
-**Repairing decision rules in data-aware process models.**
+# RulesRepair - Repairing Decision Rules in Data-Aware Process Models.**
 
 When a process changes, the normative decision rules prescribed by domain experts have to be adapted. 
 Rediscovering the rules from scratch descards normative knowledge, including mandatory requirements.
