@@ -177,7 +177,6 @@ experiments/*/repair/
 experiments.zip
 normative_model*.pkl
 !evaluation/qualitative/*.pkl
-evaluation/quantitative/
 *_tree_cache/
 n*.log
 sepsis_repair.log
