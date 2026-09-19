@@ -1,0 +1,17 @@
+\begin{table}[tb]
+\centering
+\large
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{llcccccccc}
+\toprule
+Dataset & Comparison & Overall & Prune & Change label & Branch swap & Change threshold & Change feature & Regrow leaf & Regrow internal \\
+\midrule
+\multirow{3}{*}{\rotatebox[origin=c]{0}{\textit{International Declarations}}} & \textsc{CART} vs \textsc{RR} & +0.15 & +0.02 & +0.02 & +0.13 & +0.17 & +0.14 & +0.27 & +0.28 \\
+ & \textsc{C4.5} vs \textsc{RR} & +0.17 & +0.05 & +0.08 & +0.17 & +0.18 & +0.15 & +0.29 & +0.27 \\
+ & \textsc{REPTree} vs \textsc{RR} & +0.16 & +0.03 & +0.08 & +0.14 & +0.17 & +0.16 & +0.29 & +0.26 \\
+\bottomrule
+\end{tabular}%
+}
+\caption{Hodges–Lehmann estimates. \textsc{RR} denotes \textsc{RulesRepair}.}
+\label{tab:hodges}
+\end{table}

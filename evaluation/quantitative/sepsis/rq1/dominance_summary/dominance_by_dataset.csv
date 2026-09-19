@@ -1,0 +1,4 @@
+dataset,algorithm,n_trials,dominance_pct
+sepsis,C4.5,1980,0.0
+sepsis,CART,1980,1.9696969696969695
+sepsis,REPTree,1980,0.0

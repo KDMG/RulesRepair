@@ -1,0 +1,4 @@
+dataset,algorithm,n_trials,median_delta_accuracy,q1_delta_accuracy,q3_delta_accuracy,median_delta_simplicity,q1_delta_simplicity,q3_delta_simplicity,median_delta_similarity,q1_delta_similarity,q3_delta_similarity
+production,C4.5,1,0.020408163265306145,0.020408163265306145,0.020408163265306145,0.0,0.0,0.0,0.0,0.0,0.0
+production,CART,5,0.0,0.0,0.0,0.06451612903225801,0.06451612903225801,0.06451612903225801,0.0,0.0,0.0
+production,REPTree,2,0.0,0.0,0.0,0.2258064516129033,0.17741935483870977,0.27419354838709686,0.0,0.0,0.0

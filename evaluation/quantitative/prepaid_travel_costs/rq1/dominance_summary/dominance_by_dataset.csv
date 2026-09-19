@@ -1,0 +1,4 @@
+dataset,algorithm,n_trials,dominance_pct
+prepaid_travel_costs,C4.5,1560,0.0
+prepaid_travel_costs,CART,1560,0.0
+prepaid_travel_costs,REPTree,1560,0.0

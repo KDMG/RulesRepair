@@ -1,0 +1,4 @@
+dataset,algorithm,n_trials,dominance_pct
+hospital_billing,C4.5,2668,0.07496251874062969
+hospital_billing,CART,2668,7.796101949025487
+hospital_billing,REPTree,2668,0.14992503748125938

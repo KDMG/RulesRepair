@@ -1,0 +1,4 @@
+dataset,algorithm,n_trials,dominance_pct
+production,C4.5,4440,0.02252252252252252
+production,CART,4440,0.11261261261261261
+production,REPTree,4440,0.04504504504504504

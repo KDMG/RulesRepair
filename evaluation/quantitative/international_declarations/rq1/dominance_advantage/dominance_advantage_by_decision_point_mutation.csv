@@ -1,0 +1,5 @@
+dataset,algorithm,decision_point,operator,n_trials,median_delta_accuracy,q1_delta_accuracy,q3_delta_accuracy,median_delta_simplicity,q1_delta_simplicity,q3_delta_simplicity,median_delta_similarity,q1_delta_similarity,q3_delta_similarity
+international_declarations,C4.5,p_56,regrow_internal,1,0.004930156121610518,0.004930156121610518,0.004930156121610518,0.0,0.0,0.0,0.0,0.0,0.0
+international_declarations,CART,p_68,change_feature,1,0.0,0.0,0.0,0.06451612903225801,0.06451612903225801,0.06451612903225801,0.0,0.0,0.0
+international_declarations,CART,p_68,regrow_internal,2,0.0,0.0,0.0,0.06451612903225801,0.06451612903225801,0.06451612903225801,0.0,0.0,0.0
+international_declarations,REPTree,p_56,regrow_internal,1,0.004930156121610518,0.004930156121610518,0.004930156121610518,0.0,0.0,0.0,0.0,0.0,0.0

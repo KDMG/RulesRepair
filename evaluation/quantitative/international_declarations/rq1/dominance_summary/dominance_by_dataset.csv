@@ -1,0 +1,4 @@
+dataset,algorithm,n_trials,dominance_pct
+international_declarations,C4.5,1951,0.05125576627370579
+international_declarations,CART,1951,0.1537672988211174
+international_declarations,REPTree,1951,0.05125576627370579

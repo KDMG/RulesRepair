@@ -1,0 +1,14 @@
+dataset,decision_point,view,mutation_type,not_applicable,n_breakpoints,n_seeds,n_trials_total,D_min,D_max,D_mean
+prepaid_travel_costs,p_12,overall,,False,462,30,180,0.0,0.6666666666666666,0.15003607503607502
+prepaid_travel_costs,p_13,overall,,False,120,30,60,0.0,0.5,0.13347222222222221
+prepaid_travel_costs,p_14,overall,,False,432,30,180,0.0,0.8277777777777775,0.14750514403292178
+prepaid_travel_costs,p_15,overall,,False,128,30,60,0.0,0.5,0.15950520833333334
+prepaid_travel_costs,p_17,overall,,False,572,30,210,0.0,1.0,0.1792291042291042
+prepaid_travel_costs,p_28,overall,,False,810,30,210,0.0,1.0,0.17793650793650795
+prepaid_travel_costs,p_33,overall,,False,486,30,150,0.0,1.0,0.15481481481481482
+prepaid_travel_costs,p_35,overall,,False,96,30,60,0.0,0.5,0.10225694444444444
+prepaid_travel_costs,p_38,overall,,False,70,30,60,0.0,0.5,0.09928571428571428
+prepaid_travel_costs,p_41,overall,,False,208,30,60,0.0,1.0,0.15384615384615385
+prepaid_travel_costs,p_6,overall,,False,756,30,210,0.0,1.0,0.20327538422776517
+prepaid_travel_costs,p_9,overall,,False,133,30,60,0.0,1.0,0.15238095238095237
+prepaid_travel_costs,source,overall,,False,360,30,60,0.0,0.5,0.0637962962962963

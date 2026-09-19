@@ -1,0 +1,6 @@
+dataset,mine_algorithm,trial_id,seed,decision_point,mutation_type,n_dominated,median_delta_accuracy,median_delta_similarity,median_delta_simplicity
+international_declarations,CART,s3_regrow_internal_0,25,p_68,regrow_internal,12,0.0,0.0,0.06451612903225801
+international_declarations,C4.5,s3_regrow_internal_0,29,p_56,regrow_internal,34,0.004930156121610518,0.0,0.0
+international_declarations,REPTree,s3_regrow_internal_0,29,p_56,regrow_internal,34,0.004930156121610518,0.0,0.0
+international_declarations,CART,s3_regrow_internal_0,29,p_68,regrow_internal,11,0.0,0.0,0.06451612903225801
+international_declarations,CART,s3_change_feature_0,5,p_68,change_feature,20,0.0,0.0,0.06451612903225801

@@ -1,0 +1,4 @@
+dataset,algorithm,operator,n_trials,median_delta_accuracy,q1_delta_accuracy,q3_delta_accuracy,median_delta_simplicity,q1_delta_simplicity,q3_delta_simplicity,median_delta_similarity,q1_delta_similarity,q3_delta_similarity
+sepsis,CART,branch_swap,30,0.0,0.0,0.0,0.06451612903225801,0.06451612903225801,0.06451612903225801,0.0,0.0,0.0
+sepsis,CART,change_feature,5,0.044303797468354444,0.006329113924050556,0.044303797468354444,0.06451612903225801,0.0,0.06451612903225801,0.0,0.0,0.0
+sepsis,CART,regrow_internal,4,0.01898734177215189,0.006329113924050556,0.03164556962025322,0.06451612903225801,0.06451612903225801,0.08064516129032254,0.0,0.0,0.0

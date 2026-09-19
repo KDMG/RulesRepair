@@ -1,0 +1,4 @@
+dataset,algorithm,n_trials,dominance_pct
+road_traffic,C4.5,930,1.0752688172043012
+road_traffic,CART,930,1.827956989247312
+road_traffic,REPTree,930,11.935483870967742

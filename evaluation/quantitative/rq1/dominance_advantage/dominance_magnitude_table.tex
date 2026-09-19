@@ -1,0 +1,34 @@
+\begin{table}[tb]
+\centering
+\normalsize
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{llcccccc}
+\toprule
+\textsc{Mine} & Gap
+& \textit{Sepsis}
+& \textit{Production}
+& \textit{Hospital Billing}
+& \textit{Road Traffic Fine}
+& \textit{Prepaid Travel Costs}
+& \textit{International Declarations} \\
+\midrule
+\multirow{3}{*}{CART}
+& $\Delta_{fit}$ & 0.00 [0.00, 0.00] & 0.00 [0.00, 0.00] & 0.00 [0.00, 0.00] & 0.00 [0.00, 0.01] & -- & 0.00 [0.00, 0.00] \\
+& $\Delta_{simp}$ & 0.06 [0.06, 0.06] & 0.06 [0.06, 0.06] & 0.00 [0.00, 0.00] & 0.13 [0.06, 0.13] & -- & 0.06 [0.06, 0.06] \\
+& $\Delta_{simi}$ & 0.00 [0.00, 0.00] & 0.00 [0.00, 0.00] & 0.10 [0.00, 0.13] & 0.00 [0.00, 0.00] & -- & 0.00 [0.00, 0.00] \\
+\midrule
+\multirow{3}{*}{C4.5}
+& $\Delta_{fit}$ & -- & 0.02 [0.02, 0.02] & 0.04 [0.02, 0.06] & 0.00 [0.00, 0.00] & -- & 0.00 [0.00, 0.00] \\
+& $\Delta_{simp}$ & -- & 0.00 [0.00, 0.00] & 0.00 [0.00, 0.00] & 0.00 [0.00, 0.06] & -- & 0.00 [0.00, 0.00] \\
+& $\Delta_{simi}$ & -- & 0.00 [0.00, 0.00] & 0.00 [0.00, 0.00] & 0.00 [0.00, 0.00] & -- & 0.00 [0.00, 0.00] \\
+\midrule
+\multirow{3}{*}{REPTree}
+& $\Delta_{fit}$ & -- & 0.00 [0.00, 0.00] & 0.05 [0.00, 0.10] & 0.00 [0.00, 0.00] & -- & 0.00 [0.00, 0.00] \\
+& $\Delta_{simp}$ & -- & 0.23 [0.18, 0.27] & 0.06 [0.05, 0.06] & 0.00 [0.00, 0.00] & -- & 0.00 [0.00, 0.00] \\
+& $\Delta_{simi}$ & -- & 0.00 [0.00, 0.00] & 0.00 [0.00, 0.00] & 0.00 [0.00, 0.00] & -- & 0.00 [0.00, 0.00] \\
+\bottomrule
+\end{tabular}%
+}
+\caption{Gaps in accuracy ($\Delta_{fit}$), simplicity ($\Delta_{simp}$), and similarity ($\Delta_{simi}$) for \textsc{RulesRepair} solutions dominated by \textsc{Mine} (Table \ref{tab:dominance_frequency}). -- indicates no trial in which Mine dominated RulesRepair.}
+\label{tab:dominance_magnitude}
+\end{table}

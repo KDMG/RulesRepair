@@ -1,0 +1,17 @@
+dataset,decision_point,view,mutation_type,not_applicable,n_breakpoints,n_seeds,n_trials_total,D_min,D_max,D_mean
+hospital_billing,p_10,overall,,False,640,30,60,0.0,0.5,0.08786458333333333
+hospital_billing,p_12,overall,,False,1080,30,179,0.0,1.0,0.057979423868312764
+hospital_billing,p_16,overall,,False,512,30,60,0.0,0.45,0.10677083333333334
+hospital_billing,p_21,overall,,False,28224,30,210,-0.052380952380952375,1.0,0.20213884164777024
+hospital_billing,p_22,overall,,False,11340,30,210,-0.06190476190476191,1.0,0.20369530528260688
+hospital_billing,p_23,overall,,False,19278,30,210,-0.019047619047619053,1.0,0.13785613010636352
+hospital_billing,p_24,overall,,False,29640,30,270,-0.7555555555555558,1.0,0.20707864747338434
+hospital_billing,p_28,overall,,False,38164,30,180,0.0,1.0,0.31815730938988457
+hospital_billing,p_29,overall,,False,1485,30,210,0.0,0.6142857142857142,0.14517877184543854
+hospital_billing,p_31,overall,,False,2860,30,240,0.0,0.9458333333333333,0.36087121212121215
+hospital_billing,p_33,overall,,False,900,30,210,0.0,0.6285714285714286,0.17117989417989418
+hospital_billing,p_35,overall,,False,990,30,120,0.0,0.8833333333333333,0.35928451178451176
+hospital_billing,p_38,overall,,False,224,30,60,0.0,0.4666666666666667,0.09940476190476191
+hospital_billing,p_4,overall,,False,702,30,210,0.0,1.0,0.11123321123321124
+hospital_billing,p_6,overall,,False,405,30,179,0.0,0.6533333333333334,0.12777777777777777
+hospital_billing,p_8,overall,,False,576,30,60,0.0,0.45,0.05688657407407406

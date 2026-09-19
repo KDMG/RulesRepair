@@ -1,0 +1,7 @@
+dataset,decision_point,view,mutation_type,not_applicable,n_breakpoints,n_seeds,n_trials_total,D_min,D_max,D_mean
+road_traffic,p_10,overall,,False,1760,30,60,0.0,0.5,0.04797348484848485
+road_traffic,p_12,overall,,False,5082,30,210,0.0,1.0,0.08079589962706846
+road_traffic,p_13,overall,,False,1800,30,60,0.0,0.4666666666666667,0.0842962962962963
+road_traffic,p_16,overall,,False,2475,30,210,0.0,1.0,0.3265031265031265
+road_traffic,p_4,overall,,False,6435,30,210,0.0,1.0,0.1846346246346246
+road_traffic,p_8,overall,,False,15120,30,180,-0.6888888888888889,1.0,0.1640795855379189

@@ -1,0 +1,4 @@
+dataset,algorithm,n_trials,median_delta_accuracy,q1_delta_accuracy,q3_delta_accuracy,median_delta_simplicity,q1_delta_simplicity,q3_delta_simplicity,median_delta_similarity,q1_delta_similarity,q3_delta_similarity
+international_declarations,C4.5,1,0.004930156121610518,0.004930156121610518,0.004930156121610518,0.0,0.0,0.0,0.0,0.0,0.0
+international_declarations,CART,3,0.0,0.0,0.0,0.06451612903225801,0.06451612903225801,0.06451612903225801,0.0,0.0,0.0
+international_declarations,REPTree,1,0.004930156121610518,0.004930156121610518,0.004930156121610518,0.0,0.0,0.0,0.0,0.0,0.0

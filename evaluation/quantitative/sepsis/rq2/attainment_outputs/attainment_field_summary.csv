@@ -1,0 +1,13 @@
+dataset,decision_point,view,mutation_type,not_applicable,n_breakpoints,n_seeds,n_trials_total,D_min,D_max,D_mean
+sepsis,p_13,overall,,False,3132,30,210,0.0,1.0,0.2521985039226418
+sepsis,p_18,overall,,False,8400,30,210,0.0,1.0,0.320937074829932
+sepsis,p_22,overall,,False,5940,30,180,0.0,1.0,0.2889618406285072
+sepsis,p_23,overall,,False,1170,30,210,0.0,1.0,0.11998371998372001
+sepsis,p_27,overall,,False,6240,30,180,0.0,1.0,0.21273504273504273
+sepsis,p_31,overall,,False,240,30,60,0.0,0.48333333333333334,0.10097222222222221
+sepsis,p_35,overall,,False,5148,30,180,-0.22222222222222227,1.0,0.2257403090736424
+sepsis,p_39,overall,,False,4070,30,180,0.0,1.0,0.25453453453453445
+sepsis,p_4,overall,,False,304,30,60,0.0,1.0,0.11003289473684212
+sepsis,p_41,overall,,False,3136,30,120,0.0,1.0,0.10372023809523809
+sepsis,p_42,overall,,False,1380,30,180,0.0,1.0,0.1667954911433172
+sepsis,p_8,overall,,False,1320,30,210,0.0,1.0,0.11838383838383837
