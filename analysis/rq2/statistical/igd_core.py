@@ -1,4 +1,6 @@
 import math
+from functools import lru_cache
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -9,8 +11,9 @@ from analysis.core.compare_rulesrepair_cart_dominance import (
     _holm_bonferroni, infer_dp_label, infer_seed_from_path,
     nodes_bounds, normalize_point,
 )
-from analysis.core.mutation_types import MUTATION_TYPES, filter_by_mutation_type
+from analysis.core.mutation_types import MUTATION_TYPES, filter_by_mutation_type, get_operator_series, validate_mutation_types
 from analysis.core.pareto_analysis import compute_pareto_front
+from keep_remine_prune.param_grid import GROW_CONFIGS
 
 
 REQUIRED_COLUMNS = [
@@ -111,33 +114,94 @@ def per_trial_normalized_sets(df, max_depth=DEFAULT_MAX_DEPTH, nodes_min=DEFAULT
     return result
 
 
-def per_trial_igd(df, max_depth=DEFAULT_MAX_DEPTH, nodes_min=DEFAULT_NODES_MIN, tol=DEFAULT_TOL,
-                   baseline_acc_col="acc_cart_test", baseline_nodes_col="cart_total_nodes",
-                   baseline_jaccard_col="sim_old_cart_jaccard"):
-    trial_sets = per_trial_normalized_sets(
-        df, max_depth=max_depth, nodes_min=nodes_min, tol=tol,
-        baseline_acc_col=baseline_acc_col, baseline_nodes_col=baseline_nodes_col,
-        baseline_jaccard_col=baseline_jaccard_col,
-    )
+SWEEP_OBJECTIVES = ["acc_test", "total_nodes", "sim_old_jaccard"]
+
+RULESREPAIR_OBJECTIVES = ["acc_new_test", "total_nodes", "sim_old_new_jaccard"]
+
+
+def _normalized_front(df, columns, nodes_min_b, nodes_max_b, tol):
+    points = deduplicate_points([
+        normalize_point(acc, nodes, jac, nodes_min_b, nodes_max_b)
+        for acc, nodes, jac in zip(df[columns[0]], df[columns[1]], df[columns[2]])
+    ])
+    if not points:
+        return []
+    mask = non_dominated_mask(points, tol=tol)
+    return [p for p, keep in zip(points, mask) if keep]
+
+
+@lru_cache(maxsize=None)
+def _load_all_trial_front_pairs(sweep_path, mining_algorithm, max_depth, nodes_min, tol):
+    sweep_path = Path(sweep_path)
+    configs_dir = sweep_path.parent / "configs"
+    config_names = [c["name"] for c in GROW_CONFIGS if c["algorithm"] == mining_algorithm]
+    absent = [n for n in config_names if not (configs_dir / n / "results.csv").exists()]
+    if absent:
+        print(f"  Warning: {sweep_path.parent}: missing RulesRepair results for {absent}, skipping.")
+        return {}
+
+    sweep = pd.read_csv(sweep_path)
+    missing = [c for c in ["trial_id", "algorithm"] + SWEEP_OBJECTIVES if c not in sweep.columns]
+    if missing:
+        raise ValueError(f"{sweep_path}: missing column(s) {missing} -- expected a baseline_sweep.csv file.")
+    sweep = sweep[sweep["algorithm"] == mining_algorithm]
+    results = pd.concat([pd.read_csv(configs_dir / n / "results.csv") for n in config_names], ignore_index=True)
+    missing = [c for c in ["trial_id"] + RULESREPAIR_OBJECTIVES if c not in results.columns]
+    if missing:
+        raise ValueError(f"{configs_dir}: missing column(s) {missing} in results.csv.")
+    operator_series = get_operator_series(results)
+    if operator_series is not None:
+        validate_mutation_types(operator_series, source=str(configs_dir))
+        operators = operator_series.groupby(results["trial_id"]).first()
+    else:
+        operators = None
+
+    nodes_min_b, nodes_max_b = nodes_bounds(max_depth, nodes_min)
+    pairs = {}
+    for trial_id, rr_group in results.groupby("trial_id", sort=False):
+        mine_group = sweep[sweep["trial_id"] == trial_id]
+        if mine_group.empty:
+            continue
+        pairs[trial_id] = (
+            _normalized_front(rr_group, RULESREPAIR_OBJECTIVES, nodes_min_b, nodes_max_b, tol),
+            _normalized_front(mine_group, SWEEP_OBJECTIVES, nodes_min_b, nodes_max_b, tol),
+            operators[trial_id] if operators is not None else None,
+        )
+    return pairs
+
+
+def load_trial_front_pairs(sweep_path, mining_algorithm, max_depth=DEFAULT_MAX_DEPTH, nodes_min=DEFAULT_NODES_MIN,
+                            tol=DEFAULT_TOL, mutation_type=None):
+    if mutation_type is not None and mutation_type not in MUTATION_TYPES:
+        raise ValueError(f"Unknown mutation_type {mutation_type!r}; expected one of {MUTATION_TYPES}.")
+    all_pairs = _load_all_trial_front_pairs(str(sweep_path), mining_algorithm, max_depth, nodes_min, tol)
+    return {
+        trial_id: (rr, mine) for trial_id, (rr, mine, operator) in all_pairs.items()
+        if mutation_type is None or operator == mutation_type
+    }
+
+
+def per_trial_igd(trial_pairs, tol=DEFAULT_TOL):
     rows = []
-    for trial_id, (rulesrepair_front_norm, cart_norm) in trial_sets.items():
-        pooled = deduplicate_points(rulesrepair_front_norm + [cart_norm])
+    for trial_id, (rulesrepair_front, mine_front) in trial_pairs.items():
+        pooled = deduplicate_points(rulesrepair_front + mine_front)
         ref_mask = non_dominated_mask(pooled, tol=tol)
         reference_front = [p for p, keep in zip(pooled, ref_mask) if keep]
-
         rows.append({
             "trial_id": trial_id,
-            "igd_rulesrepair": igd_plus(rulesrepair_front_norm, reference_front),
-            "igd_baseline": igd_plus([cart_norm], reference_front),
+            "igd_rulesrepair": igd_plus(rulesrepair_front, reference_front),
+            "igd_baseline": igd_plus(mine_front, reference_front),
             "n_reference": len(reference_front),
-            "n_rulesrepair_front": len(rulesrepair_front_norm),
+            "n_rulesrepair_front": len(rulesrepair_front),
+            "n_baseline_front": len(mine_front),
         })
-    return pd.DataFrame(rows)
+    return pd.DataFrame(rows, columns=[
+        "trial_id", "igd_rulesrepair", "igd_baseline", "n_reference", "n_rulesrepair_front", "n_baseline_front",
+    ])
 
 
 def build_seed_level_table(csv_paths, max_depth=DEFAULT_MAX_DEPTH, nodes_min=DEFAULT_NODES_MIN, tol=DEFAULT_TOL,
-                            mutation_type=None, baseline_acc_col="acc_cart_test",
-                            baseline_nodes_col="cart_total_nodes", baseline_jaccard_col="sim_old_cart_jaccard"):
+                            mutation_type=None, mining_algorithm="cart"):
     rows = []
     dp_labels = set()
     for p in csv_paths:
@@ -145,14 +209,10 @@ def build_seed_level_table(csv_paths, max_depth=DEFAULT_MAX_DEPTH, nodes_min=DEF
         if seed is None:
             raise ValueError(f"{p}: no 'seed_<N>' segment found in the path -- every input must be seed-tagged.")
         dp_labels.add(infer_dp_label(p))
-        df = pd.read_csv(p)
-        if mutation_type is not None:
-            df = filter_by_mutation_type(df, mutation_type, source=str(p))
-        per_trial = per_trial_igd(
-            df, max_depth=max_depth, nodes_min=nodes_min, tol=tol,
-            baseline_acc_col=baseline_acc_col, baseline_nodes_col=baseline_nodes_col,
-            baseline_jaccard_col=baseline_jaccard_col,
+        pairs = load_trial_front_pairs(
+            p, mining_algorithm, max_depth=max_depth, nodes_min=nodes_min, tol=tol, mutation_type=mutation_type,
         )
+        per_trial = per_trial_igd(pairs, tol=tol)
         rows.append({
             "decision_point": infer_dp_label(p),
             "seed": seed,
@@ -170,8 +230,7 @@ def build_seed_level_table(csv_paths, max_depth=DEFAULT_MAX_DEPTH, nodes_min=DEF
 
 
 def build_trial_level_table(csv_paths, max_depth=DEFAULT_MAX_DEPTH, nodes_min=DEFAULT_NODES_MIN, tol=DEFAULT_TOL,
-                             mutation_type=None, baseline_acc_col="acc_cart_test",
-                             baseline_nodes_col="cart_total_nodes", baseline_jaccard_col="sim_old_cart_jaccard"):
+                             mutation_type=None, mining_algorithm="cart"):
     rows = []
     dp_labels = set()
     for p in csv_paths:
@@ -180,14 +239,10 @@ def build_trial_level_table(csv_paths, max_depth=DEFAULT_MAX_DEPTH, nodes_min=DE
             raise ValueError(f"{p}: no 'seed_<N>' segment found in the path -- every input must be seed-tagged.")
         dp_label = infer_dp_label(p)
         dp_labels.add(dp_label)
-        df = pd.read_csv(p)
-        if mutation_type is not None:
-            df = filter_by_mutation_type(df, mutation_type, source=str(p))
-        per_trial = per_trial_igd(
-            df, max_depth=max_depth, nodes_min=nodes_min, tol=tol,
-            baseline_acc_col=baseline_acc_col, baseline_nodes_col=baseline_nodes_col,
-            baseline_jaccard_col=baseline_jaccard_col,
+        pairs = load_trial_front_pairs(
+            p, mining_algorithm, max_depth=max_depth, nodes_min=nodes_min, tol=tol, mutation_type=mutation_type,
         )
+        per_trial = per_trial_igd(pairs, tol=tol)
         for _, prow in per_trial.iterrows():
             rows.append({
                 "decision_point": dp_label, "seed": seed, "trial_id": prow["trial_id"],
@@ -203,15 +258,12 @@ def build_trial_level_table(csv_paths, max_depth=DEFAULT_MAX_DEPTH, nodes_min=DE
 
 def build_trial_level_tables_by_mutation_type(csv_paths, mutation_types=MUTATION_TYPES,
                                                max_depth=DEFAULT_MAX_DEPTH, nodes_min=DEFAULT_NODES_MIN,
-                                               tol=DEFAULT_TOL, baseline_acc_col="acc_cart_test",
-                                               baseline_nodes_col="cart_total_nodes",
-                                               baseline_jaccard_col="sim_old_cart_jaccard"):
+                                               tol=DEFAULT_TOL, mining_algorithm="cart"):
     tables = {}
     for mt in mutation_types:
         trial_table = build_trial_level_table(
             csv_paths, max_depth=max_depth, nodes_min=nodes_min, tol=tol, mutation_type=mt,
-            baseline_acc_col=baseline_acc_col, baseline_nodes_col=baseline_nodes_col,
-            baseline_jaccard_col=baseline_jaccard_col,
+            mining_algorithm=mining_algorithm,
         )
         tables[mt] = trial_table if len(trial_table) > 0 else None
     return tables
@@ -219,15 +271,12 @@ def build_trial_level_tables_by_mutation_type(csv_paths, mutation_types=MUTATION
 
 def build_seed_level_tables_by_mutation_type(csv_paths, mutation_types=MUTATION_TYPES,
                                               max_depth=DEFAULT_MAX_DEPTH, nodes_min=DEFAULT_NODES_MIN,
-                                              tol=DEFAULT_TOL, baseline_acc_col="acc_cart_test",
-                                              baseline_nodes_col="cart_total_nodes",
-                                              baseline_jaccard_col="sim_old_cart_jaccard"):
+                                              tol=DEFAULT_TOL, mining_algorithm="cart"):
     tables = {}
     for mt in mutation_types:
         seed_table = build_seed_level_table(
             csv_paths, max_depth=max_depth, nodes_min=nodes_min, tol=tol, mutation_type=mt,
-            baseline_acc_col=baseline_acc_col, baseline_nodes_col=baseline_nodes_col,
-            baseline_jaccard_col=baseline_jaccard_col,
+            mining_algorithm=mining_algorithm,
         )
         total_trials = int(seed_table["n_trials"].sum()) if len(seed_table) else 0
         tables[mt] = seed_table if total_trials > 0 else None

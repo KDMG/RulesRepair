@@ -17,7 +17,6 @@ def main():
     parser.add_argument("--initial-fraction", type=float, default=1,
                          help="Share of each table used as D_initial (guard mining), taken from the start, in order")
     parser.add_argument("--max-depth", type=int, default=4)
-    parser.add_argument("--min-samples-leaf", type=float, default=0.02)
     parser.add_argument("--save", default=None, help="Save the built normative model to this file (pickle)")
     parser.add_argument("--quiet", action="store_true", help="Don't print each tree, just the summary table")
     args = parser.parse_args()
@@ -87,7 +86,7 @@ def main():
         tree = f1 = onehot_map = columns = None
         if buildable:
             tree, f1, onehot_map, columns = build_tree(
-                records, max_depth=args.max_depth, min_samples_leaf=args.min_samples_leaf,
+                records, max_depth=args.max_depth,
             )
             buildable = tree is not None  # only fails if there are literally zero feature columns
 
@@ -103,7 +102,6 @@ def main():
                 "n_classes": n_classes,
                 "positive_class": positive_class,
                 "max_depth": args.max_depth,
-                "min_samples_leaf": args.min_samples_leaf,
             }
             trivial_flag = "  (single class, trivial guard)" if n_classes < 2 else ""
             summary_rows.append(

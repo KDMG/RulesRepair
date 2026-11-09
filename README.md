@@ -69,10 +69,10 @@ The following commands reproduce the quantitative analyses reported in the paper
 
 ```bash
 poetry run python -m analysis.core.computational_time \
-    experiments/<dataset>/repair/seed_*/*/mutated/results.csv
+    experiments/<dataset>/repair/seed_*/*/mutated/baseline_sweep.csv
 ```
 
-See results in `evaluation/quantitative/<dataset>/timing/time_delta_overall.csv`.
+See results in `evaluation/quantitative/<dataset>/timing/time_by_algorithm.csv` (and `time_by_config.csv`): the time of one RulesRepair run (one mining configuration over the whole w_simp x w_simi grid) against the time of one rediscovery fit of the same configuration.
 
 ### RQ1: does the Pareto set produced by RulesRepair contains solutions dominated by rediscovering algorithms?
 
@@ -80,18 +80,18 @@ Run:
 
 ```bash
 poetry run python -m analysis.rq1 dominance-summary \
-    experiments/<dataset>/repair/seed_*/*/mutated/analysis/pareto_per_trial.csv
+    experiments/<dataset>/repair/seed_*/*/mutated/baseline_sweep.csv
 ```
 
 and:
 
 ```bash
 poetry run python -m analysis.rq1 dominance-advantage \
-    experiments/<dataset>/repair/seed_*/*/mutated/analysis/pareto_per_trial.csv
+    experiments/<dataset>/repair/seed_*/*/mutated/baseline_sweep.csv
 ```
 
-`dominance-summary` reports the percentage of times in which rediscovering dominates at least one solution of the Pareto front produced by RulesRepair.
-`dominance-advantage` reports the gaps in accuracy, simplicity and similarity for RulesRepair solutions dominated by Mine.
+`dominance-summary` reports, for each rediscovery algorithm (CART, C4.5, REPTree) and each mutant, whether at least one point of the Pareto front of the rediscovery parameter sweep dominates at least one point of the Pareto front of RulesRepair runs that use only that algorithm in the regrow (`mutated/configs/<config>/results.csv`), and aggregates it as a percentage of trials.
+`dominance-advantage` reports the gaps in accuracy, simplicity and similarity for every pair (Mine solution `m`, RulesRepair solution `tree_r`) in which `m` dominates `tree_r`, with both taken from the Pareto fronts of the same algorithm.
 Every result is aggregated by dataset, decision point, mutation type.
 
 To obtain the combined latex tables shown in our paper, run:
@@ -109,10 +109,12 @@ Run:
 
 ```bash
 poetry run python -m analysis.rq2.statistical multi-baseline-table \
-    experiments/<dataset>/repair/seed_*/*/mutated/analysis/pareto_per_trial.csv \
+    experiments/<dataset>/repair/seed_*/*/mutated/baseline_sweep.csv \
     --dataset <dataset> \
     --trial-level --by-dataset
 ```
+
+For each trial and each rediscovery algorithm (CART, C4.5, REPTree), the Pareto front of the rediscovery parameter sweep and the Pareto front of the RulesRepair runs that use only that algorithm in the regrow (`mutated/configs/<config>/results.csv`) are merged to build the reference front; IGD+ is computed for both fronts against it, and the paired differences are tested with the Wilcoxon signed-rank test and summarised with the Hodges-Lehmann estimator.
 
 To obtain the combined latex table shown in our paper, run:
 

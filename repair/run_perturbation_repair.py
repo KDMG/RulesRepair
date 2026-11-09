@@ -2,12 +2,13 @@ import argparse
 import json
 import pickle
 import time
+from pathlib import Path
 
 import pandas as pd
 from sklearn.metrics import f1_score, accuracy_score
 
 from mining.cart_training import build_tree, encode_records
-from mining.weka_baselines import build_j48_trees, build_reptree_tree
+from mining.weka_baselines import build_j48_tree, build_reptree_tree
 from keep_remine_prune import keep_remine_prune_alg
 from keep_remine_prune.tree_ruleset_conversion import tuple_tree_conversion
 from keep_remine_prune.similar_tree import rule_set_similarity, rule_set_similarity_labeled, jaccard_rule_set_similarity
@@ -17,8 +18,6 @@ from mutations.selection import IDENTIFIER_COLUMNS
 from mutations.tree_mutations import root_to_leaf_paths
 
 NON_FEATURE_COLUMNS = IDENTIFIER_COLUMNS | {"branch_index", "branch_label"}
-
-SKLEARN_GROW_FUNC_MIN_SAMPLES_LEAF = 0.02
 
 
 def encode(df, cat_cols, columns):
@@ -84,11 +83,11 @@ def load_xy(df, cat_cols, columns):
     return X, y
 
 
-def build_cart_baseline(df_adapt_raw, df_test_raw, max_depth, rs_old, old_tree=None, criterion="gini"):
+def build_cart_baseline(df_adapt_raw, df_test_raw, max_depth, rs_old, old_tree=None, criterion="gini", min_samples_leaf=0.02):
     cart_records = df_adapt_raw.drop(
         columns=[c for c in NON_FEATURE_COLUMNS if c in df_adapt_raw.columns]
     ).to_dict("records")
-    cart_tree, f1_cart_adapt, cart_onehot_map, cart_columns = build_tree(cart_records, max_depth=max_depth, criterion=criterion)
+    cart_tree, f1_cart_adapt, cart_onehot_map, cart_columns = build_tree(cart_records, max_depth=max_depth, min_samples_leaf=min_samples_leaf, criterion=criterion)
     if cart_tree is None:
         return cart_tree, f1_cart_adapt, None, None, None, None, None, None, None, None
     cart_cat_cols = list({orig for orig, _ in cart_onehot_map.values()})
@@ -142,7 +141,7 @@ def _evaluate_binary_tree(tree, X_adapt, y_adapt, onehot_map, columns, df_test_r
     )
 
 
-def build_binary_baseline(build_tree_func, label, df_adapt_raw, df_test_raw, max_depth, rs_old, old_tree=None):
+def build_binary_baseline(build_tree_func, label, df_adapt_raw, df_test_raw, max_depth, rs_old, old_tree=None, min_samples_leaf=None):
     records = df_adapt_raw.drop(
         columns=[c for c in NON_FEATURE_COLUMNS if c in df_adapt_raw.columns]
     ).to_dict("records")
@@ -152,34 +151,17 @@ def build_binary_baseline(build_tree_func, label, df_adapt_raw, df_test_raw, max
               f"reporting None for every {label} column on this row.")
         return None, None, None, None, None, None, None, None, None, None
 
-    tree = build_tree_func(X_adapt, y_adapt, columns, max_depth)
+    tree_kwargs = {} if min_samples_leaf is None else {"min_samples_leaf": min_samples_leaf}
+    tree = build_tree_func(X_adapt, y_adapt, columns, max_depth, **tree_kwargs)
     return _evaluate_binary_tree(tree, X_adapt, y_adapt, onehot_map, columns, df_test_raw, rs_old, old_tree)
 
 
-def build_j48_pair_baseline(df_adapt_raw, df_test_raw, max_depth, rs_old, old_tree=None):
-    records = df_adapt_raw.drop(
-        columns=[c for c in NON_FEATURE_COLUMNS if c in df_adapt_raw.columns]
-    ).to_dict("records")
-    X_adapt, y_adapt, onehot_map, columns = encode_records(records)
-    if X_adapt is None:
-        print("Warning: J48 baseline got zero feature columns for this trial's D_adapt, "
-              "reporting None for every j48/j48_unbounded column on this row.")
-        empty = (None, None, None, None, None, None, None, None, None, None)
-        return empty, empty
-
-    bounded_tree, unbounded_tree = build_j48_trees(X_adapt, y_adapt, columns, max_depth)
-    bounded = _evaluate_binary_tree(bounded_tree, X_adapt, y_adapt, onehot_map, columns, df_test_raw, rs_old, old_tree)
-    unbounded = _evaluate_binary_tree(unbounded_tree, X_adapt, y_adapt, onehot_map, columns, df_test_raw, rs_old, old_tree)
-    return bounded, unbounded
+def build_j48_baseline(df_adapt_raw, df_test_raw, max_depth, rs_old, old_tree=None, min_samples_leaf=None):
+    return build_binary_baseline(build_j48_tree, "J48", df_adapt_raw, df_test_raw, max_depth, rs_old, old_tree, min_samples_leaf)
 
 
-def build_j48_baseline(df_adapt_raw, df_test_raw, max_depth, rs_old, old_tree=None):
-    bounded, _unbounded = build_j48_pair_baseline(df_adapt_raw, df_test_raw, max_depth, rs_old, old_tree)
-    return bounded
-
-
-def build_reptree_baseline(df_adapt_raw, df_test_raw, max_depth, rs_old, old_tree=None):
-    return build_binary_baseline(build_reptree_tree, "REPTree", df_adapt_raw, df_test_raw, max_depth, rs_old, old_tree)
+def build_reptree_baseline(df_adapt_raw, df_test_raw, max_depth, rs_old, old_tree=None, min_samples_leaf=None):
+    return build_binary_baseline(build_reptree_tree, "REPTree", df_adapt_raw, df_test_raw, max_depth, rs_old, old_tree, min_samples_leaf)
 
 
 def run_repair(
@@ -188,6 +170,8 @@ def run_repair(
     w_simps=(0.01,), w_simis=(0.01,), max_depth=4,
     fixed=False,
 ):
+    from repair.baseline_sweep import SWEEP_COLUMNS, fit_baseline_sweep, sweep_rows_for_trial
+
     with open(normative_model_path, "rb") as f:
         normative_model = pickle.load(f)
     if dp not in normative_model:
@@ -197,17 +181,13 @@ def run_repair(
     cat_cols = list({orig for orig, _ in onehot_map.values()})
 
     pkl_max_depth = dp_entry.get("max_depth")
-    pkl_min_samples_leaf = dp_entry.get("min_samples_leaf")
-    if pkl_max_depth is None or pkl_min_samples_leaf is None:
-        print(f"Warning: '{dp}' has no max_depth/min_samples_leaf recorded, "
+    if pkl_max_depth is None:
+        print(f"Warning: '{dp}' has no max_depth recorded, "
               f"cannot verify it matches how T_old was mined. Rebuild with build_normative_model.py.")
     else:
         if pkl_max_depth != max_depth:
             print(f"Warning: T_old for '{dp}' was mined with max_depth={pkl_max_depth}, "
                   f"but max_depth={max_depth} is being used now. Pass --max-depth {pkl_max_depth}.")
-        if pkl_min_samples_leaf != SKLEARN_GROW_FUNC_MIN_SAMPLES_LEAF:
-            print(f"Warning: T_old for '{dp}' was mined with min_samples_leaf={pkl_min_samples_leaf}, "
-                  f"but regrow candidates use min_samples_leaf={SKLEARN_GROW_FUNC_MIN_SAMPLES_LEAF}.")
 
     df_data = pd.read_csv(data_csv)
 
@@ -241,6 +221,7 @@ def run_repair(
     done = 0
 
     rows = []
+    sweep_rows = []
     for trial_idx, trial in enumerate(trials, start=1):
         df_adapt_raw = pd.read_csv(trial["train_file"])
         df_test_raw = pd.read_csv(trial["test_file"])
@@ -256,6 +237,9 @@ def run_repair(
         acc_old_adapt = acc_score(y_adapt, pred_old_adapt)
         acc_old_test = acc_score(y_test, pred_old_test)
 
+        sweep_configs = fit_baseline_sweep(df_adapt_raw, df_test_raw, max_depth, rs_old)
+        sweep_rows.extend(sweep_rows_for_trial(sweep_configs, old_tree, rs_old, {"trial_id": trial["trial_id"]}))
+
         cart_start = time.perf_counter()
         (
             cart_tree, f1_cart_adapt, f1_cart_test, acc_cart_adapt, acc_cart_test, cart_total_nodes,
@@ -267,12 +251,9 @@ def run_repair(
 
         j48_start = time.perf_counter()
         (
-            (j48_tree, f1_j48_adapt, f1_j48_test, acc_j48_adapt, acc_j48_test, j48_total_nodes,
-             sim_old_j48, sim_old_j48_labeled, sim_old_j48_jaccard, pct_reaudit_j48),
-            (j48_unbounded_tree, f1_j48_unbounded_adapt, f1_j48_unbounded_test, acc_j48_unbounded_adapt,
-             acc_j48_unbounded_test, j48_unbounded_total_nodes, sim_old_j48_unbounded,
-             sim_old_j48_unbounded_labeled, sim_old_j48_unbounded_jaccard, pct_reaudit_j48_unbounded),
-        ) = build_j48_pair_baseline(df_adapt_raw, df_test_raw, max_depth, rs_old, old_tree=old_tree)
+            j48_tree, f1_j48_adapt, f1_j48_test, acc_j48_adapt, acc_j48_test, j48_total_nodes,
+            sim_old_j48, sim_old_j48_labeled, sim_old_j48_jaccard, pct_reaudit_j48,
+        ) = build_j48_baseline(df_adapt_raw, df_test_raw, max_depth, rs_old, old_tree=old_tree)
         j48_train_time_sec = time.perf_counter() - j48_start
 
         reptree_start = time.perf_counter()
@@ -399,6 +380,9 @@ def run_repair(
 
     out = pd.DataFrame(rows)
     out.to_csv(out_csv, index=False)
+    sweep_csv = Path(out_csv).with_name("baseline_sweep.csv")
+    pd.DataFrame(sweep_rows, columns=SWEEP_COLUMNS).to_csv(sweep_csv, index=False)
+    print(f"Baseline sweep: {len(sweep_rows)} rows -> {sweep_csv}", flush=True)
     elapsed_total = time.time() - start_time
     print(f"Done in {elapsed_total / 60:.1f} min: {len(trials)} trials x {len(w_simps)}x{len(w_simis)} "
           f"(w_simp,w_simi) -> {len(out)} rows -> {out_csv}", flush=True)
@@ -420,7 +404,7 @@ def main():
     parser.add_argument("--split-seed", type=int, default=0)
     parser.add_argument("--manifest", required=True)
     parser.add_argument("--w-simps", default="0.0,0.001,0.005,0.01,0.02,0.05,0.1,0.2,0.3,0.5,0.75,1.0,1.5,2.0,3.0,5.0", help="Comma-separated list of w_simp values to sweep. Normalized scale (complexity term divided by nodes_max=2**(max_depth+1)-1): range covers no-penalty through full collapse-to-root, calibrated across sepsis/hospital_billing/road_traffic decision points spanning n_train 154-37592. Extra resolution below 0.02 (0.001/0.005/0.01) since some hospital_billing dps collapse to a trivial 1-node tree already at the first coarser nonzero value.")
-    parser.add_argument("--w-simis", default="0.0,0.001,0.005,0.01,0.02,0.05,0.1,0.2,0.3,0.5,0.75,1.0,1.5", help="Comma-separated list of w_simi values to sweep. Normalized scale (audit term divided by nodes_max). Narrower top end than --w-simps (1.5 vs 5.0): w_simi saturates (n_new=0, fully reverts to keep) by ~0.5-1 in every decision point checked, so values above 1.5 are redundant.")
+    parser.add_argument("--w-simis", default="0.0,0.001,0.005,0.01,0.02,0.05,0.1,0.2,0.3,0.5,0.75,1.0,1.5", help="Comma-separated list of w_simi values to sweep. Normalized scale (kept-nodes term / nodes_max). Narrower top end than --w-simps (1.5 vs 5.0): w_simi saturates (n_new=0, fully reverts to keep) by ~0.5-1 in every decision point checked, so values above 1.5 are redundant.")
     parser.add_argument("--max-depth", type=int, default=4)
     parser.add_argument("--out-csv", required=True)
     args = parser.parse_args()

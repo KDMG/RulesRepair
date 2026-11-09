@@ -29,6 +29,7 @@ def parse_args(argv):
     parser.add_argument("--fixed", action="store_true")
     parser.add_argument("--skip-baseline", action="store_true")
     parser.add_argument("--baseline-tree-cache-dir", default=None)
+    parser.add_argument("--regenerate-mutants", action="store_true")
     return parser.parse_args(argv)
 
 
@@ -88,6 +89,8 @@ def main(argv=None):
         extra_flags.append("--skip-baseline")
     if args.baseline_tree_cache_dir:
         extra_flags += ["--baseline-tree-cache-dir", args.baseline_tree_cache_dir]
+    if args.regenerate_mutants:
+        extra_flags.append("--regenerate-mutants")
 
     dp_files = sorted(dp_dir.glob("dp_*.csv"))
     if not dp_files:

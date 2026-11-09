@@ -168,15 +168,13 @@ def main(argv=None):
         run_step(
             [sys.executable, "-m", "mining.build_normative_model",
              "--dp-dir", str(normative_dp_dir),
-             "--max-depth", "4",
-             "--min-samples-leaf", "0.02",
              "--save", str(normative_model),
              "--quiet"],
             REPO_ROOT, env,
         )
 
     print(flush=True)
-    print(f"step 5/5 {dataset}: running repair (baseline + mutated) on every dp, seed(s): {args.seeds}", flush=True)
+    print(f"step 5/5 {dataset}: running mutated repair on every dp, seed(s): {args.seeds}", flush=True)
     if args.skip_repair:
         print("Skipped (--skip-repair).", flush=True)
     else:
@@ -191,7 +189,7 @@ def main(argv=None):
         )
 
     print(flush=True)
-    print(f"Pipeline for {dataset} completed. Output in {out_base}/seed_<N>/<dp>/{{baseline,mutated}}/", flush=True)
+    print(f"Pipeline for {dataset} completed. Output in {out_base}/seed_<N>/<dp>/mutated/", flush=True)
     return 0
 
 

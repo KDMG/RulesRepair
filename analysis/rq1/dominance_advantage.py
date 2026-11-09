@@ -5,7 +5,7 @@ import pandas as pd
 
 from analysis.core.compare_rulesrepair_cart_dominance import DEFAULT_TOL, DEFAULT_MAX_DEPTH, _dominates
 from analysis.rq1._common import (
-    infer_dataset, _expand_and_label_paths, _load_merge_csvs,
+    infer_dataset, iter_front_pairs, _load_merge_csvs,
     DATASET_DISPLAY_NAMES, DATASET_COLUMN_ORDER, BASELINE_ALGORITHMS,
 )
 
@@ -21,7 +21,7 @@ METRIC_SUBSCRIPTS = {"accuracy": "fit", "simplicity": "simp", "similarity": "sim
 
 RAW_COLUMNS = [
     "dataset", "mine_algorithm", "trial_id", "seed", "decision_point", "mutation_type",
-    "repair_solution_id",
+    "mine_solution_id", "repair_solution_id",
     "mine_accuracy", "repair_accuracy", "delta_accuracy",
     "mine_similarity", "repair_similarity", "delta_similarity",
     "mine_total_nodes", "repair_total_nodes",
@@ -32,60 +32,26 @@ RAW_COLUMNS = [
 def collect_dominated_solution_deltas(csv_paths, algorithms=BASELINE_ALGORITHMS, tol=DEFAULT_TOL,
                                        n_max_nodes=N_MAX_NODES):
     rows = []
-    warned = set()
-    for path, dataset, seed, decision_point in _expand_and_label_paths(csv_paths, quiet=True):
-        df = pd.read_csv(path)
-        base_required = [
-            "trial_id", "is_pareto", "acc_new_test", "total_nodes", "sim_old_new_jaccard",
-            "w_simp", "w_simi", "t",
-        ]
-        if any(c not in df.columns for c in base_required):
-            continue
-        pareto_df = df[df["is_pareto"]]
-        for trial_id, group in pareto_df.groupby("trial_id"):
-            group = group.reset_index(drop=True)
-            if "operator_detail" in group.columns:
-                operator = group["operator_detail"].iloc[0]
-            elif "operator" in group.columns:
-                operator = group["operator"].iloc[0]
-            else:
-                operator = None
-
-            for algo in algorithms:
-                needed = [algo["acc_col"], algo["nodes_col"], algo["jaccard_col"]]
-                missing = [c for c in needed if c not in group.columns]
-                if missing:
-                    warn_key = (str(path), algo["key"])
-                    if warn_key not in warned:
-                        print(f"  Warning: {path}: missing column(s) {missing} for algorithm "
-                              f"{algo['display']}, skipping.")
-                        warned.add(warn_key)
+    for pair in iter_front_pairs(csv_paths, algorithms, tol):
+        for m_id, (m_acc, m_nodes, m_jaccard) in enumerate(pair["mine_front"]):
+            m_simplicity = 1.0 - m_nodes / n_max_nodes
+            for r_id, (r_acc, r_nodes, r_jaccard) in enumerate(pair["rr_front"]):
+                if not _dominates(m_acc, m_nodes, m_jaccard, r_acc, r_nodes, r_jaccard, tol):
                     continue
-                a_acc = float(group[algo["acc_col"]].iloc[0])
-                a_nodes = float(group[algo["nodes_col"]].iloc[0])
-                a_jaccard = float(group[algo["jaccard_col"]].iloc[0])
-                a_simplicity = 1.0 - a_nodes / n_max_nodes
-
-                for _, r in group.iterrows():
-                    r_acc = float(r["acc_new_test"])
-                    r_nodes = float(r["total_nodes"])
-                    r_jaccard = float(r["sim_old_new_jaccard"])
-                    if not _dominates(a_acc, a_nodes, a_jaccard, r_acc, r_nodes, r_jaccard, tol):
-                        continue
-                    r_simplicity = 1.0 - r_nodes / n_max_nodes
-                    repair_solution_id = f"w_simp={r['w_simp']}_w_simi={r['w_simi']}_t={r['t']}"
-                    rows.append({
-                        "dataset": dataset, "mine_algorithm": algo["display"],
-                        "trial_id": trial_id, "seed": seed, "decision_point": decision_point,
-                        "mutation_type": operator, "repair_solution_id": repair_solution_id,
-                        "mine_accuracy": a_acc, "repair_accuracy": r_acc,
-                        "delta_accuracy": a_acc - r_acc,
-                        "mine_similarity": a_jaccard, "repair_similarity": r_jaccard,
-                        "delta_similarity": a_jaccard - r_jaccard,
-                        "mine_total_nodes": a_nodes, "repair_total_nodes": r_nodes,
-                        "mine_simplicity": a_simplicity, "repair_simplicity": r_simplicity,
-                        "delta_simplicity": a_simplicity - r_simplicity,
-                    })
+                r_simplicity = 1.0 - r_nodes / n_max_nodes
+                rows.append({
+                    "dataset": pair["dataset"], "mine_algorithm": pair["algorithm"],
+                    "trial_id": pair["trial_id"], "seed": pair["seed"],
+                    "decision_point": pair["decision_point"], "mutation_type": pair["operator"],
+                    "mine_solution_id": m_id, "repair_solution_id": r_id,
+                    "mine_accuracy": m_acc, "repair_accuracy": r_acc,
+                    "delta_accuracy": m_acc - r_acc,
+                    "mine_similarity": m_jaccard, "repair_similarity": r_jaccard,
+                    "delta_similarity": m_jaccard - r_jaccard,
+                    "mine_total_nodes": m_nodes, "repair_total_nodes": r_nodes,
+                    "mine_simplicity": m_simplicity, "repair_simplicity": r_simplicity,
+                    "delta_simplicity": m_simplicity - r_simplicity,
+                })
     return pd.DataFrame(rows, columns=RAW_COLUMNS)
 
 
@@ -292,7 +258,7 @@ def main_dominance_advantage(argv=None):
     parser.add_argument(
         "-combine", action="store_true",
         help="csv_paths are dominance_advantage_by_dataset.csv files (one per dataset) instead of "
-             "pareto_per_trial.csv files; combine them into the single cross-dataset paper table.",
+             "baseline_sweep.csv files; combine them into the single cross-dataset paper table.",
     )
     parser.add_argument("-combine-out-csv", default=None)
     parser.add_argument("-combine-out-tex", default=None)

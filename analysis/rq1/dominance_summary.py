@@ -132,7 +132,7 @@ def main_dominance_summary(argv=None):
     parser.add_argument(
         "-combine", action="store_true",
         help="csv_paths are dominance_by_dataset.csv files (one per dataset) instead of "
-             "pareto_per_trial.csv files; combine them into the single cross-dataset paper table.",
+             "baseline_sweep.csv files; combine them into the single cross-dataset paper table.",
     )
     parser.add_argument("-combine-out-csv", default=None)
     parser.add_argument("-combine-out-tex", default=None)

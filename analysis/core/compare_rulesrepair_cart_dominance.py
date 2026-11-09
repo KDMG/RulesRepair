@@ -288,6 +288,8 @@ def _latex_escape(s):
 
 def infer_dp_label(csv_path):
     path = Path(csv_path)
+    if path.parent.name in ("mutated", "baseline"):
+        return path.parent.parent.name
     if path.parent.name == "analysis" and path.parent.parent.name in ("mutated", "baseline"):
         return path.parent.parent.parent.name
     return str(path)

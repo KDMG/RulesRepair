@@ -2,9 +2,11 @@ import re
 from pathlib import Path
 import glob as glob_module
 
+import numpy as np
 import pandas as pd
 
 from analysis.core.compare_rulesrepair_cart_dominance import DEFAULT_TOL, _dominates
+from keep_remine_prune.param_grid import GROW_CONFIGS
 
 
 _DATASET_RE = re.compile(r"experiments[/\\]([^/\\]+)[/\\]repair[/\\]")
@@ -131,10 +133,13 @@ DATASET_COLUMN_ORDER = [
 
 BASELINE_ALGORITHMS = [
     {"key": "cart", "display": "CART",
+     "mining_algorithm": "cart",
      "acc_col": "acc_cart_test", "nodes_col": "cart_total_nodes", "jaccard_col": "sim_old_cart_jaccard"},
     {"key": "c45", "display": "C4.5",
+     "mining_algorithm": "j48",
      "acc_col": "acc_j48_test", "nodes_col": "j48_total_nodes", "jaccard_col": "sim_old_j48_jaccard"},
     {"key": "reptree", "display": "REPTree",
+     "mining_algorithm": "reptree",
      "acc_col": "acc_reptree_test", "nodes_col": "reptree_total_nodes", "jaccard_col": "sim_old_reptree_jaccard"},
 ]
 
@@ -153,50 +158,84 @@ def load_dom_cov_raw(csv_paths):
     )
 
 
+SWEEP_OBJECTIVES = ["acc_test", "total_nodes", "sim_old_jaccard"]
+
+RULESREPAIR_OBJECTIVES = ["acc_new_test", "total_nodes", "sim_old_new_jaccard"]
+
+
+def _pareto_points(points, tol=DEFAULT_TOL):
+    unique = np.unique(np.round(np.asarray(points, dtype=float), 9), axis=0)
+    keep = []
+    for i, p in enumerate(unique):
+        dominated = False
+        for j, q in enumerate(unique):
+            if i != j and _dominates(q[0], q[1], q[2], p[0], p[1], p[2], tol):
+                dominated = True
+                break
+        if not dominated:
+            keep.append(p)
+    return np.array(keep)
+
+
+def _expected_config_names(mining_algorithm):
+    return [c["name"] for c in GROW_CONFIGS if c["algorithm"] == mining_algorithm]
+
+
+def iter_front_pairs(csv_paths, algorithms=BASELINE_ALGORITHMS, tol=DEFAULT_TOL):
+    warned = set()
+    for path, dataset, seed, _ in _expand_and_label_paths(csv_paths, quiet=True):
+        decision_point = path.parents[1].name
+        sweep = pd.read_csv(path)
+        missing = [c for c in ["trial_id", "algorithm"] + SWEEP_OBJECTIVES if c not in sweep.columns]
+        if missing:
+            raise SystemExit(f"{path}: missing column(s) {missing} -- expected a baseline_sweep.csv file.")
+        configs_dir = path.parent / "configs"
+
+        for algo in algorithms:
+            mining_algorithm = algo["mining_algorithm"]
+            config_names = _expected_config_names(mining_algorithm)
+            absent = [n for n in config_names if not (configs_dir / n / "results.csv").exists()]
+            if absent:
+                if (str(path), mining_algorithm) not in warned:
+                    print(f"  Warning: {path.parent}: missing RulesRepair results for {absent}, "
+                          f"skipping {algo['display']}.")
+                    warned.add((str(path), mining_algorithm))
+                continue
+            results = pd.concat(
+                [pd.read_csv(configs_dir / name / "results.csv") for name in config_names], ignore_index=True
+            )
+            missing = [c for c in ["trial_id"] + RULESREPAIR_OBJECTIVES if c not in results.columns]
+            if missing:
+                raise SystemExit(f"{configs_dir}: missing column(s) {missing} in results.csv.")
+
+            mine_all = sweep[sweep["algorithm"] == mining_algorithm]
+            operators = results.groupby("trial_id")["operator"].first() if "operator" in results.columns else None
+            for trial_id, rr_group in results.groupby("trial_id"):
+                mine_group = mine_all[mine_all["trial_id"] == trial_id]
+                if mine_group.empty:
+                    continue
+                yield {
+                    "dataset": dataset, "seed": seed, "decision_point": decision_point,
+                    "trial_id": trial_id,
+                    "operator": operators[trial_id] if operators is not None else None,
+                    "algorithm": algo["display"],
+                    "rr_front": _pareto_points(rr_group[RULESREPAIR_OBJECTIVES].to_numpy(), tol),
+                    "mine_front": _pareto_points(mine_group[SWEEP_OBJECTIVES].to_numpy(), tol),
+                }
+
+
 def collect_multi_algorithm_dominance(csv_paths, algorithms=BASELINE_ALGORITHMS, tol=DEFAULT_TOL):
     rows = []
-    warned = set()
-    for path, dataset, seed, decision_point in _expand_and_label_paths(csv_paths, quiet=True):
-        df = pd.read_csv(path)
-        base_required = ["trial_id", "is_pareto", "acc_new_test", "total_nodes", "sim_old_new_jaccard"]
-        if any(c not in df.columns for c in base_required):
-            continue
-        pareto_df = df[df["is_pareto"]]
-        for trial_id, group in pareto_df.groupby("trial_id"):
-            front = list(zip(
-                group["acc_new_test"].astype(float),
-                group["total_nodes"].astype(float),
-                group["sim_old_new_jaccard"].astype(float),
-            ))
-            front_size = len(front)
-            if "operator_detail" in group.columns:
-                operator = group["operator_detail"].iloc[0]
-            elif "operator" in group.columns:
-                operator = group["operator"].iloc[0]
-            else:
-                operator = None
-
-            for algo in algorithms:
-                needed = [algo["acc_col"], algo["nodes_col"], algo["jaccard_col"]]
-                missing = [c for c in needed if c not in group.columns]
-                if missing:
-                    warn_key = (str(path), algo["key"])
-                    if warn_key not in warned:
-                        print(f"  Warning: {path}: missing column(s) {missing} for algorithm "
-                              f"{algo['display']}, skipping.")
-                        warned.add(warn_key)
-                    continue
-                a_acc = float(group[algo["acc_col"]].iloc[0])
-                a_nodes = float(group[algo["nodes_col"]].iloc[0])
-                a_jaccard = float(group[algo["jaccard_col"]].iloc[0])
-                n_dominated = sum(
-                    1 for (acc, nodes, jaccard) in front
-                    if _dominates(a_acc, a_nodes, a_jaccard, acc, nodes, jaccard, tol)
-                )
-                rows.append({
-                    "dataset": dataset, "seed": seed, "decision_point": decision_point,
-                    "trial_id": trial_id, "operator": operator, "algorithm": algo["display"],
-                    "front_size": front_size, "n_dominated": n_dominated,
-                    "d_i": (n_dominated / front_size) if front_size else float("nan"),
-                })
+    for pair in iter_front_pairs(csv_paths, algorithms, tol):
+        rr_front, mine_front = pair["rr_front"], pair["mine_front"]
+        n_dominated = sum(
+            1 for r in rr_front
+            if any(_dominates(m[0], m[1], m[2], r[0], r[1], r[2], tol) for m in mine_front)
+        )
+        rows.append({
+            "dataset": pair["dataset"], "seed": pair["seed"], "decision_point": pair["decision_point"],
+            "trial_id": pair["trial_id"], "operator": pair["operator"], "algorithm": pair["algorithm"],
+            "front_size": len(rr_front), "mine_front_size": len(mine_front),
+            "n_dominated": n_dominated, "d_i": n_dominated / len(rr_front),
+        })
     return pd.DataFrame(rows)

@@ -14,40 +14,38 @@ from analysis.rq2.statistical.rq_table import (
 
 def _filter_out_w_simp_values(paths, excluded_w_simps, tmp_dir):
     import re
+    import shutil
 
     filtered_paths = []
     for p in paths:
         orig = Path(p)
         seed_match = re.search(r"seed_(\d+)", str(orig))
         if seed_match is None:
-            raise ValueError(f"")
-        if not (orig.parent.name == "analysis" and orig.parent.parent.name in ("mutated", "baseline")):
-            raise ValueError(
-                f"{p}: expected .../<dp>/{{mutated,baseline}}/analysis/{orig.name} shape, got {orig}."
-            )
-        dp_name = orig.parent.parent.parent.name
-        scenario = orig.parent.parent.name
+            raise ValueError(f"{p}: no 'seed_<N>' segment found in the path.")
+        if orig.parent.name not in ("mutated", "baseline"):
+            raise ValueError(f"{p}: expected .../<dp>/{{mutated,baseline}}/{orig.name} shape, got {orig}.")
+        dp_name = orig.parent.parent.name
+        scenario = orig.parent.name
 
-        df = pd.read_csv(p)
-        mask = pd.Series(True, index=df.index)
-        for excl in excluded_w_simps:
-            mask &= (df["w_simp"] - excl).abs() > DEFAULT_TOL
-        df = df[mask]
-
-        out_path = Path(tmp_dir) / f"seed_{seed_match.group(1)}" / dp_name / scenario / "analysis" / orig.name
-        out_path.parent.mkdir(parents=True, exist_ok=True)
-        df.to_csv(out_path, index=False)
-        filtered_paths.append(str(out_path))
+        out_dir = Path(tmp_dir) / f"seed_{seed_match.group(1)}" / dp_name / scenario
+        out_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copy(orig, out_dir / orig.name)
+        for results_path in sorted((orig.parent / "configs").glob("*/results.csv")):
+            df = pd.read_csv(results_path)
+            mask = pd.Series(True, index=df.index)
+            for excl in excluded_w_simps:
+                mask &= (df["w_simp"] - excl).abs() > DEFAULT_TOL
+            config_dir = out_dir / "configs" / results_path.parent.name
+            config_dir.mkdir(parents=True, exist_ok=True)
+            df[mask].to_csv(config_dir / "results.csv", index=False)
+        filtered_paths.append(str(out_dir / orig.name))
     return filtered_paths
 
 
 DEFAULT_MULTI_BASELINES = [
-    {"label": "CART", "acc_col": "acc_cart_test", "nodes_col": "cart_total_nodes",
-     "jaccard_col": "sim_old_cart_jaccard"},
-    {"label": "J48", "acc_col": "acc_j48_test", "nodes_col": "j48_total_nodes",
-     "jaccard_col": "sim_old_j48_jaccard"},
-    {"label": "REPTree", "acc_col": "acc_reptree_test", "nodes_col": "reptree_total_nodes",
-     "jaccard_col": "sim_old_reptree_jaccard"},
+    {"label": "CART", "mining_algorithm": "cart"},
+    {"label": "J48", "mining_algorithm": "j48"},
+    {"label": "REPTree", "mining_algorithm": "reptree"},
 ]
 
 

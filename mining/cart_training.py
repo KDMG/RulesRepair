@@ -33,10 +33,12 @@ def encode_records(records):
     return X, y, onehot_map, list(X.columns)
 
 
-def build_tree(records, max_depth=4, min_samples_leaf=0.02, criterion="gini"):
+def build_tree(records, max_depth=4, min_samples_leaf=1, criterion="gini"):
     X, y, onehot_map, columns = encode_records(records)
     if X is None:
         return None, None, {}, []
+    if min_samples_leaf >= 1:
+        min_samples_leaf = int(min_samples_leaf)
     clf = DecisionTreeClassifier(max_depth=max_depth, min_samples_leaf=min_samples_leaf, criterion=criterion, random_state=0)
     clf.fit(X, y)
     f1 = f1_score(y, clf.predict(X), average="macro", zero_division=0)

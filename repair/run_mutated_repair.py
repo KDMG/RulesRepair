@@ -1,4 +1,5 @@
 import argparse
+import hashlib
 import json
 import pickle
 import sys
@@ -13,25 +14,26 @@ from keep_remine_prune.similar_tree import rule_set_similarity, rule_set_similar
 from keep_remine_prune.reaudit import mark_reaudit_nodes, reaudit_summary
 from repair.run_perturbation_experiment import split_adapt_test
 from repair.run_perturbation_repair import (
-    SKLEARN_GROW_FUNC_MIN_SAMPLES_LEAF,
     predict, f1_macro, acc_score, count_nodes, count_new_nodes, load_xy,
     build_cart_baseline, extend_columns_for_regrow,
-    build_j48_pair_baseline, build_reptree_baseline,
+    build_j48_baseline, build_reptree_baseline,
 )
+from repair.baseline_sweep import SWEEP_COLUMNS, fit_or_load_baseline_sweep, sweep_rows_for_trial
 from mutations.mutation_sampling import (
-    generate_mutants, print_mutation_summary,
+    generate_mutants, print_mutation_summary, tree_depth,
     DEFAULT_P, DEFAULT_DEGRADATION_THRESHOLD,
     DEFAULT_MAX_REGROW_ATTEMPTS, DEFAULT_REGROW_MAX_DEPTH, DEFAULT_REGROW_SPLIT_PROB,
     DEFAULT_MAX_ALTERNATIVES_PER_NODE,
 )
 from mutations.tree_mutations import root_to_leaf_paths
-from analysis.core.trial_pareto_analysis import run_trial_pareto_analysis
+from keep_remine_prune.param_grid import GROW_CONFIGS, grow_kwargs
 
 RESULTS_COLUMNS = [
     "trial_id", "scenario", "operator", "mutation_index",
     "mutation_node_id", "mutation_description",
     "mutation_acc_before", "mutation_acc_after", "mutation_degradation",
     "n_alternatives_tried",
+    "mining_config", "mining_algorithm", "mining_criterion", "min_samples_leaf_pct", "min_samples_leaf",
     "w_simp", "w_simi", "t", "delta_f1_old", "delta_acc_old",
     "f1_old_adapt", "f1_old_test", "acc_old_adapt", "acc_old_test",
     "f1_new_adapt", "f1_new_test", "acc_new_adapt", "acc_new_test",
@@ -71,12 +73,9 @@ def _fit_or_load_baseline_trees(df_adapt_raw, df_test_raw, max_depth, rs_true_ol
 
     j48_start = time.perf_counter()
     (
-        (j48_tree, f1_j48_adapt, f1_j48_test, acc_j48_adapt, acc_j48_test, j48_total_nodes,
-         _unused_sim_j48, _unused_sim_j48_labeled, _unused_sim_j48_jaccard, _unused_pct_reaudit_j48),
-        (j48_unbounded_tree, f1_j48_unbounded_adapt, f1_j48_unbounded_test, acc_j48_unbounded_adapt,
-         acc_j48_unbounded_test, j48_unbounded_total_nodes, _unused_sim_j48u, _unused_sim_j48u_labeled,
-         _unused_sim_j48u_jaccard, _unused_pct_reaudit_j48u),
-    ) = build_j48_pair_baseline(df_adapt_raw, df_test_raw, max_depth, rs_true_old)
+        j48_tree, f1_j48_adapt, f1_j48_test, acc_j48_adapt, acc_j48_test, j48_total_nodes,
+        _unused_sim_j48, _unused_sim_j48_labeled, _unused_sim_j48_jaccard, _unused_pct_reaudit_j48,
+    ) = build_j48_baseline(df_adapt_raw, df_test_raw, max_depth, rs_true_old)
     j48_train_time_sec = time.perf_counter() - j48_start
 
     reptree_start = time.perf_counter()
@@ -92,9 +91,6 @@ def _fit_or_load_baseline_trees(df_adapt_raw, df_test_raw, max_depth, rs_true_ol
         "cart_train_time_sec": cart_train_time_sec,
         "j48_tree": j48_tree, "f1_j48_adapt": f1_j48_adapt, "f1_j48_test": f1_j48_test,
         "acc_j48_adapt": acc_j48_adapt, "acc_j48_test": acc_j48_test, "j48_total_nodes": j48_total_nodes,
-        "j48_unbounded_tree": j48_unbounded_tree, "f1_j48_unbounded_adapt": f1_j48_unbounded_adapt,
-        "f1_j48_unbounded_test": f1_j48_unbounded_test, "acc_j48_unbounded_adapt": acc_j48_unbounded_adapt,
-        "acc_j48_unbounded_test": acc_j48_unbounded_test, "j48_unbounded_total_nodes": j48_unbounded_total_nodes,
         "j48_train_time_sec": j48_train_time_sec,
         "reptree_tree": reptree_tree, "f1_reptree_adapt": f1_reptree_adapt, "f1_reptree_test": f1_reptree_test,
         "acc_reptree_adapt": acc_reptree_adapt, "acc_reptree_test": acc_reptree_test,
@@ -112,11 +108,43 @@ def _fit_or_load_baseline_trees(df_adapt_raw, df_test_raw, max_depth, rs_true_ol
         finally:
             sys.setrecursionlimit(old_limit)
         tmp_path.replace(cache_path)
-        print(f"Baseline-tree cache miss, fit CART/J48(bounded+unbounded)/"
+        print(f"Baseline-tree cache miss, fit CART/J48/"
               f"REPTree fresh and saved to {cache_path} for reuse by later --seed runs "
               f"of this same dp.", flush=True)
 
     return payload
+
+
+def _load_existing_mutants(out_dir, operator_names):
+    manifest = out_dir / "manifest.jsonl"
+    if not manifest.exists():
+        return None
+    trials = []
+    with open(manifest) as f:
+        for line in f:
+            if not line.strip():
+                continue
+            rec = json.loads(line)
+            tree_file = out_dir / f"{rec['trial_id']}_mutant_tree.pkl"
+            if not tree_file.exists():
+                return None
+            with open(tree_file, "rb") as tf:
+                mutant_tree = pickle.load(tf)
+            trials.append({
+                "trial_id": rec["trial_id"],
+                "operator": rec["operator"],
+                "mutation_index": rec["mutation_index"],
+                "mutant_tree": mutant_tree,
+                "mutation_node_id": rec["mutation_node_id"],
+                "mutation_description": rec["mutation_description"],
+                "mutation_acc_before": rec["mutation_acc_before"],
+                "mutation_acc_after": rec["mutation_acc_after"],
+                "mutation_degradation": rec["mutation_degradation"],
+                "n_alternatives_tried": rec["n_alternatives_tried"],
+            })
+    if operator_names is not None:
+        trials = [t for t in trials if t["operator"] in operator_names]
+    return trials or None
 
 
 def run_mutated_repair(
@@ -127,7 +155,7 @@ def run_mutated_repair(
     n_thresholds=10, max_regrow_attempts=DEFAULT_MAX_REGROW_ATTEMPTS,
     regrow_max_depth=DEFAULT_REGROW_MAX_DEPTH, regrow_split_prob=DEFAULT_REGROW_SPLIT_PROB,
     fixed=False, baseline_tree_cache_dir=None,
-    max_alternatives_per_node=DEFAULT_MAX_ALTERNATIVES_PER_NODE,
+    max_alternatives_per_node=DEFAULT_MAX_ALTERNATIVES_PER_NODE, regenerate_mutants=False,
 ):
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -141,17 +169,13 @@ def run_mutated_repair(
     cat_cols = list({orig for orig, _ in onehot_map.values()})
 
     pkl_max_depth = dp_entry.get("max_depth")
-    pkl_min_samples_leaf = dp_entry.get("min_samples_leaf")
-    if pkl_max_depth is None or pkl_min_samples_leaf is None:
-        print(f"Warning: '{dp}' has no max_depth/min_samples_leaf recorded, "
+    if pkl_max_depth is None:
+        print(f"Warning: '{dp}' has no max_depth recorded, "
               f"cannot verify it matches how T_old was mined. Rebuild with build_normative_model.py.")
     else:
         if pkl_max_depth != max_depth:
             print(f"Warning: T_old for '{dp}' was mined with max_depth={pkl_max_depth}, "
                   f"but max_depth={max_depth} is being used now. Pass --max-depth {pkl_max_depth}.")
-        if pkl_min_samples_leaf != SKLEARN_GROW_FUNC_MIN_SAMPLES_LEAF:
-            print(f"Warning: T_old for '{dp}' was mined with min_samples_leaf={pkl_min_samples_leaf}, "
-                  f"but regrow candidates use min_samples_leaf={SKLEARN_GROW_FUNC_MIN_SAMPLES_LEAF}.")
 
     df_data = pd.read_csv(data_csv)
 
@@ -172,28 +196,30 @@ def run_mutated_repair(
 
     rs_true_old = tuple_tree_conversion(true_old_tree)
 
+    old_tree_hash = hashlib.md5(repr(rs_true_old).encode()).hexdigest()[:8]
     baseline_tree_cache_path = (
         Path(baseline_tree_cache_dir) / (
-            f"{dp}_af{adapt_fraction}_{split_method}_ss{split_seed}_md{max_depth}.pkl"
+            f"{dp}_af{adapt_fraction}_{split_method}_ss{split_seed}_md{max_depth}_t{old_tree_hash}.pkl"
         ) if baseline_tree_cache_dir else None
     )
     _bt = _fit_or_load_baseline_trees(df_adapt_raw, df_test_raw, max_depth, rs_true_old, baseline_tree_cache_path)
+    grid_hash = hashlib.md5("|".join(c["name"] for c in GROW_CONFIGS).encode()).hexdigest()[:6]
+    sweep_cache_path = (
+        baseline_tree_cache_path.with_name(baseline_tree_cache_path.stem + f"_sweep_g{grid_hash}.pkl")
+        if baseline_tree_cache_path is not None else None
+    )
+    sweep_configs = fit_or_load_baseline_sweep(df_adapt_raw, df_test_raw, max_depth, rs_true_old, sweep_cache_path)
     cart_tree, f1_cart_adapt, f1_cart_test, acc_cart_adapt, acc_cart_test, cart_total_nodes, cart_train_time_sec = (
         _bt["cart_tree"], _bt["f1_cart_adapt"], _bt["f1_cart_test"], _bt["acc_cart_adapt"],
         _bt["acc_cart_test"], _bt["cart_total_nodes"], _bt["cart_train_time_sec"],
     )
     rs_cart = tuple_tree_conversion(cart_tree) if cart_tree is not None else None
 
-    (j48_tree, f1_j48_adapt, f1_j48_test, acc_j48_adapt, acc_j48_test, j48_total_nodes,
-     j48_unbounded_tree, f1_j48_unbounded_adapt, f1_j48_unbounded_test, acc_j48_unbounded_adapt,
-     acc_j48_unbounded_test, j48_unbounded_total_nodes, j48_train_time_sec) = (
+    (j48_tree, f1_j48_adapt, f1_j48_test, acc_j48_adapt, acc_j48_test, j48_total_nodes, j48_train_time_sec) = (
         _bt["j48_tree"], _bt["f1_j48_adapt"], _bt["f1_j48_test"], _bt["acc_j48_adapt"], _bt["acc_j48_test"],
-        _bt["j48_total_nodes"], _bt["j48_unbounded_tree"], _bt["f1_j48_unbounded_adapt"],
-        _bt["f1_j48_unbounded_test"], _bt["acc_j48_unbounded_adapt"], _bt["acc_j48_unbounded_test"],
-        _bt["j48_unbounded_total_nodes"], _bt["j48_train_time_sec"],
+        _bt["j48_total_nodes"], _bt["j48_train_time_sec"],
     )
     rs_j48 = tuple_tree_conversion(j48_tree) if j48_tree is not None else None
-    rs_j48_unbounded = tuple_tree_conversion(j48_unbounded_tree) if j48_unbounded_tree is not None else None
 
     (reptree_tree, f1_reptree_adapt, f1_reptree_test, acc_reptree_adapt, acc_reptree_test,
      reptree_total_nodes, reptree_train_time_sec) = (
@@ -205,45 +231,61 @@ def run_mutated_repair(
     X_train_full, y_train_full = load_xy(df_data, cat_cols, columns)
     classes = sorted(set(y_adapt) | set(y_test))
 
-    print(f"Generating mutants: p={p:.0%}, degradation_threshold={degradation_threshold}, seed={seed}"
-          + (f", max_alternatives_per_node={max_alternatives_per_node}" if max_alternatives_per_node is not None else ""),
-          flush=True)
-    mutation_results, mutation_summary = generate_mutants(
-        true_old_tree, X_train_full, columns, classes, X_adapt, y_adapt,
-        p=p, degradation_threshold=degradation_threshold, seed=seed,
-        n_thresholds=n_thresholds, max_regrow_attempts=max_regrow_attempts,
-        regrow_max_depth=regrow_max_depth, regrow_split_prob=regrow_split_prob,
-        max_alternatives_per_node=max_alternatives_per_node,
-    )
-    if operator_names is not None:
-        mutation_results = {k: v for k, v in mutation_results.items() if k in operator_names}
-        mutation_summary = {k: v for k, v in mutation_summary.items() if k in operator_names}
-    print_mutation_summary(mutation_summary)
+    trials = None if regenerate_mutants else _load_existing_mutants(out_dir, operator_names)
+    if trials is not None:
+        too_deep = [t["trial_id"] for t in trials if tree_depth(t["mutant_tree"]) > max_depth]
+        if too_deep:
+            raise SystemExit(
+                f"{len(too_deep)} existing mutant(s) in {out_dir / 'manifest.jsonl'} have depth > max_depth={max_depth} "
+                f"(e.g. {too_deep[:3]}); they were generated without the depth limit. "
+                f"Pass --regenerate-mutants to generate new ones."
+            )
+        n_by_operator = {}
+        for t in trials:
+            n_by_operator[t["operator"]] = n_by_operator.get(t["operator"], 0) + 1
+        print(f"Reusing {len(trials)} existing mutant(s) from {out_dir / 'manifest.jsonl'} "
+              f"(per operator: {n_by_operator}); pass --regenerate-mutants to generate new ones.", flush=True)
+    else:
+        print(f"Generating mutants: p={p:.0%}, degradation_threshold={degradation_threshold}, seed={seed}"
+              + (f", max_alternatives_per_node={max_alternatives_per_node}" if max_alternatives_per_node is not None else ""),
+              flush=True)
+        mutation_results, mutation_summary = generate_mutants(
+            true_old_tree, X_train_full, columns, classes, X_adapt, y_adapt,
+            p=p, degradation_threshold=degradation_threshold, seed=seed,
+            n_thresholds=n_thresholds, max_regrow_attempts=max_regrow_attempts,
+            regrow_max_depth=regrow_max_depth, regrow_split_prob=regrow_split_prob,
+            max_alternatives_per_node=max_alternatives_per_node, max_tree_depth=max_depth,
+        )
+        if operator_names is not None:
+            mutation_results = {k: v for k, v in mutation_results.items() if k in operator_names}
+            mutation_summary = {k: v for k, v in mutation_summary.items() if k in operator_names}
+        print_mutation_summary(mutation_summary)
 
-    trials = []
-    for operator, records in mutation_results.items():
-        for i, rec in enumerate(records):
-            trials.append({
-                "trial_id": f"s3_{operator}_{i}",
-                "operator": operator,
-                "mutation_index": i,
-                "mutant_tree": rec["tree"],
-                "mutation_node_id": int(rec["node_id"]),
-                "mutation_description": rec["description"],
-                "mutation_acc_before": float(rec["acc_before"]),
-                "mutation_acc_after": float(rec["acc_after"]),
-                "mutation_degradation": float(rec["degradation"]),
-                "n_alternatives_tried": int(rec["n_alternatives_tried"]),
-            })
-    n_by_operator = {op: len(recs) for op, recs in mutation_results.items()}
-    print(f"Generated {len(trials)} mutant trial(s) across operators: {n_by_operator}", flush=True)
-    if not trials:
-        print(f"Warning: '{dp}'s T_old produced zero accepted mutants across all operators, "
-              f"Scenario 3 has nothing to repair for this decision point. Writing an empty "
-              f"(header-only) results.csv.", flush=True)
+        trials = []
+        for operator, records in mutation_results.items():
+            for i, rec in enumerate(records):
+                trials.append({
+                    "trial_id": f"s3_{operator}_{i}",
+                    "operator": operator,
+                    "mutation_index": i,
+                    "mutant_tree": rec["tree"],
+                    "mutation_node_id": int(rec["node_id"]),
+                    "mutation_description": rec["description"],
+                    "mutation_acc_before": float(rec["acc_before"]),
+                    "mutation_acc_after": float(rec["acc_after"]),
+                    "mutation_degradation": float(rec["degradation"]),
+                    "n_alternatives_tried": int(rec["n_alternatives_tried"]),
+                })
+        n_by_operator = {op: len(recs) for op, recs in mutation_results.items()}
+        print(f"Generated {len(trials)} mutant trial(s) across operators: {n_by_operator}", flush=True)
+        if not trials:
+            print(f"Warning: '{dp}'s T_old produced zero accepted mutants across all operators, "
+                  f"Scenario 3 has nothing to repair for this decision point. Writing an empty "
+                  f"(header-only) results.csv.", flush=True)
+
 
     manifest_path = out_dir / "manifest.jsonl"
-    out_csv = out_dir / "results.csv"
+    manifest_tmp_path = out_dir / "manifest.jsonl.tmp"
 
     if fixed:
         path_lists_by_trial = [root_to_leaf_paths(t["mutant_tree"]) for t in trials]
@@ -251,8 +293,8 @@ def run_mutated_repair(
         path_lists_by_trial = [[(None, None)] for _ in trials]
 
     n_combos = len(w_simps) * len(w_simis)
-    total_evals = sum(len(pl) for pl in path_lists_by_trial) * n_combos
-    print(f"Grid: {len(w_simps)} w_simps x {len(w_simis)} w_simis = {n_combos} combos/trial"
+    total_evals = sum(len(pl) for pl in path_lists_by_trial) * n_combos * len(GROW_CONFIGS)
+    print(f"Grid: {len(GROW_CONFIGS)} mining configs x {len(w_simps)} w_simps x {len(w_simis)} w_simis = {len(GROW_CONFIGS) * n_combos} combos/trial"
           + (f" x (path count varies per mutant, {sum(len(pl) for pl in path_lists_by_trial)} total)"
              if fixed else "")
           + f" -> {total_evals} total evaluations.", flush=True)
@@ -260,9 +302,10 @@ def run_mutated_repair(
     start_time = time.time()
     done = 0
 
-    rows = []
-    tree_records = []
-    with open(manifest_path, "w") as manifest_f:
+    rows_by_config = {config["name"]: [] for config in GROW_CONFIGS}
+    tree_records_by_config = {config["name"]: [] for config in GROW_CONFIGS}
+    sweep_rows = []
+    with open(manifest_tmp_path, "w") as manifest_f:
         for trial_idx, trial in enumerate(trials, start=1):
             mutant_tree = trial["mutant_tree"]
 
@@ -296,6 +339,9 @@ def run_mutated_repair(
             acc_old_test = acc_score(y_test, pred_old_test)
 
             rs_mutant = tuple_tree_conversion(mutant_tree)
+            sweep_rows.extend(sweep_rows_for_trial(sweep_configs, mutant_tree, rs_mutant, {
+                "trial_id": trial["trial_id"], "operator": trial["operator"], "mutation_index": trial["mutation_index"],
+            }))
             sim_old_cart = rule_set_similarity(rs_mutant, rs_cart) if rs_cart is not None else None
             sim_old_cart_labeled = rule_set_similarity_labeled(rs_mutant, rs_cart) if rs_cart is not None else None
             sim_old_cart_jaccard = jaccard_rule_set_similarity(rs_mutant, rs_cart) if rs_cart is not None else None
@@ -313,14 +359,6 @@ def run_mutated_repair(
                 mark_reaudit_nodes(mutant_tree, j48_tree)
                 _, _, pct_reaudit_j48 = reaudit_summary(j48_tree)
 
-            sim_old_j48_unbounded = rule_set_similarity(rs_mutant, rs_j48_unbounded) if rs_j48_unbounded is not None else None
-            sim_old_j48_unbounded_labeled = rule_set_similarity_labeled(rs_mutant, rs_j48_unbounded) if rs_j48_unbounded is not None else None
-            sim_old_j48_unbounded_jaccard = jaccard_rule_set_similarity(rs_mutant, rs_j48_unbounded) if rs_j48_unbounded is not None else None
-            pct_reaudit_j48_unbounded = None
-            if j48_unbounded_tree is not None:
-                mark_reaudit_nodes(mutant_tree, j48_unbounded_tree)
-                _, _, pct_reaudit_j48_unbounded = reaudit_summary(j48_unbounded_tree)
-
             sim_old_reptree = rule_set_similarity(rs_mutant, rs_reptree) if rs_reptree is not None else None
             sim_old_reptree_labeled = rule_set_similarity_labeled(rs_mutant, rs_reptree) if rs_reptree is not None else None
             sim_old_reptree_jaccard = jaccard_rule_set_similarity(rs_mutant, rs_reptree) if rs_reptree is not None else None
@@ -329,160 +367,169 @@ def run_mutated_repair(
                 mark_reaudit_nodes(mutant_tree, reptree_tree)
                 _, _, pct_reaudit_reptree = reaudit_summary(reptree_tree)
 
-            rulesrepair_cache = {}
-
             path_list = path_lists_by_trial[trial_idx - 1]
 
-            for leaf_id, forced_ids in path_list:
-                for w_simp in w_simps:
-                    for w_simi in w_simis:
-                        rulesrepair_start = time.perf_counter()
-                        new_tree = keep_remine_prune_alg.grow_tree(
-                            X_adapt, y_adapt, old_tree=mutant_tree,
-                            w_simp=w_simp, w_simi=w_simi,
-                            max_depth=max_depth, grow_func=keep_remine_prune_alg.sklearn_grow_func,
-                            cache=rulesrepair_cache, forced_keep_ids=forced_ids,
-                        )
-                        rulesrepair_grow_time_sec = time.perf_counter() - rulesrepair_start
-
-                        pred_new_adapt = predict(new_tree, X_adapt, cache=rulesrepair_cache)
-                        pred_new_test = predict(new_tree, X_test, cache=rulesrepair_cache)
-                        f1_new_adapt = f1_macro(y_adapt, pred_new_adapt)
-                        f1_new_test = f1_macro(y_test, pred_new_test)
-                        acc_new_adapt = acc_score(y_adapt, pred_new_adapt)
-                        acc_new_test = acc_score(y_test, pred_new_test)
-
-                        n_total = count_nodes(new_tree)
-                        n_new = count_new_nodes(new_tree)
-
-                        rs_new = tuple_tree_conversion(new_tree)
-                        sim_old_new = rule_set_similarity(rs_mutant, rs_new)
-                        sim_old_new_labeled = rule_set_similarity_labeled(rs_mutant, rs_new)
-                        sim_old_new_jaccard = jaccard_rule_set_similarity(rs_mutant, rs_new)
-
-                        mark_reaudit_nodes(mutant_tree, new_tree)
-                        _, _, pct_reaudit_new = reaudit_summary(new_tree)
-
-                        row = {
-                            "trial_id": f"{trial['trial_id']}_fixedleaf{leaf_id}" if fixed else trial["trial_id"],
-                            "scenario": 3,
-                            "operator": trial["operator"],
-                            "mutation_index": trial["mutation_index"],
-                            "mutation_node_id": trial["mutation_node_id"],
-                            "mutation_description": trial["mutation_description"],
-                            "mutation_acc_before": trial["mutation_acc_before"],
-                            "mutation_acc_after": trial["mutation_acc_after"],
-                            "mutation_degradation": trial["mutation_degradation"],
-                            "n_alternatives_tried": trial["n_alternatives_tried"],
-                            "w_simp": w_simp,
-                            "w_simi": w_simi,
-                            "t": None,  # kept for CSV-schema compat; no longer swept
-                            "delta_f1_old": baseline_f1 - f1_old_test,
-                            "delta_acc_old": baseline_acc - acc_old_test,
-                            "f1_old_adapt": f1_old_adapt,
-                            "f1_old_test": f1_old_test,
-                            "acc_old_adapt": acc_old_adapt,
-                            "acc_old_test": acc_old_test,
-                            "f1_new_adapt": f1_new_adapt,
-                            "f1_new_test": f1_new_test,
-                            "acc_new_adapt": acc_new_adapt,
-                            "acc_new_test": acc_new_test,
-                            "total_nodes": n_total,
-                            "new_nodes": n_new,
-                            "pct_to_reaudit": round(100 * n_new / n_total, 1) if n_total else 0.0,
-                            "pct_reaudit_new": pct_reaudit_new,
-                            "sim_old_new": round(sim_old_new, 4),
-                            "sim_old_new_labeled": round(sim_old_new_labeled, 4),
-                            "sim_old_new_jaccard": round(sim_old_new_jaccard, 4),
-                            "f1_cart_adapt": f1_cart_adapt,
-                            "f1_cart_test": f1_cart_test,
-                            "acc_cart_adapt": acc_cart_adapt,
-                            "acc_cart_test": acc_cart_test,
-                            "cart_total_nodes": cart_total_nodes,
-                            "cart_pct_to_reaudit": 100.0 if cart_tree is not None else None,
-                            "pct_reaudit_cart": pct_reaudit_cart,
-                            "sim_old_cart": round(sim_old_cart, 4) if sim_old_cart is not None else None,
-                            "sim_old_cart_labeled": round(sim_old_cart_labeled, 4) if sim_old_cart_labeled is not None else None,
-                            "sim_old_cart_jaccard": round(sim_old_cart_jaccard, 4) if sim_old_cart_jaccard is not None else None,
-                            "cart_train_time_sec": round(cart_train_time_sec, 6),
-                            "rulesrepair_grow_time_sec": round(rulesrepair_grow_time_sec, 6),
-                            "f1_j48_adapt": f1_j48_adapt,
-                            "f1_j48_test": f1_j48_test,
-                            "acc_j48_adapt": acc_j48_adapt,
-                            "acc_j48_test": acc_j48_test,
-                            "j48_total_nodes": j48_total_nodes,
-                            "j48_pct_to_reaudit": 100.0 if j48_tree is not None else None,
-                            "pct_reaudit_j48": pct_reaudit_j48,
-                            "sim_old_j48": round(sim_old_j48, 4) if sim_old_j48 is not None else None,
-                            "sim_old_j48_labeled": round(sim_old_j48_labeled, 4) if sim_old_j48_labeled is not None else None,
-                            "sim_old_j48_jaccard": round(sim_old_j48_jaccard, 4) if sim_old_j48_jaccard is not None else None,
-                            "j48_train_time_sec": round(j48_train_time_sec, 6),
-                            "f1_reptree_adapt": f1_reptree_adapt,
-                            "f1_reptree_test": f1_reptree_test,
-                            "acc_reptree_adapt": acc_reptree_adapt,
-                            "acc_reptree_test": acc_reptree_test,
-                            "reptree_total_nodes": reptree_total_nodes,
-                            "reptree_pct_to_reaudit": 100.0 if reptree_tree is not None else None,
-                            "pct_reaudit_reptree": pct_reaudit_reptree,
-                            "sim_old_reptree": round(sim_old_reptree, 4) if sim_old_reptree is not None else None,
-                            "sim_old_reptree_labeled": round(sim_old_reptree_labeled, 4) if sim_old_reptree_labeled is not None else None,
-                            "sim_old_reptree_jaccard": round(sim_old_reptree_jaccard, 4) if sim_old_reptree_jaccard is not None else None,
-                            "reptree_train_time_sec": round(reptree_train_time_sec, 6),
-                        }
-                        if fixed:
-                            row["fixed_leaf_id"] = leaf_id
-                        rows.append(row)
-
-                        tree_record = {
-                            "trial_id": trial["trial_id"],
-                            "operator": trial["operator"],
-                            "mutation_index": trial["mutation_index"],
-                            "w_simp": w_simp,
-                            "w_simi": w_simi,
-                            "t": None,
-                            "old_tree": mutant_tree,
-                            "new_tree": new_tree,
-                            "cart_tree": cart_tree,
-                        }
-                        if fixed:
-                            tree_record["fixed_leaf_id"] = leaf_id
-                        tree_records.append(tree_record)
-
-                        done += 1
-                        if done % progress_every == 0 or done == total_evals:
-                            elapsed = time.time() - start_time
-                            rate = done / elapsed if elapsed > 0 else 0
-                            eta_min = (total_evals - done) / rate / 60 if rate > 0 else float("inf")
-                            print(
-                                f"  {done}/{total_evals} ({100 * done / total_evals:.1f}%), "
-                                f"trial {trial_idx}/{len(trials)}, "
-                                f"elapsed {elapsed / 60:.1f} min, ETA {eta_min:.1f} min",
-                                flush=True,
+            for config in GROW_CONFIGS:
+                rulesrepair_cache = {}
+                for leaf_id, forced_ids in path_list:
+                    for w_simp in w_simps:
+                        for w_simi in w_simis:
+                            rulesrepair_start = time.perf_counter()
+                            new_tree = keep_remine_prune_alg.grow_tree(
+                                X_adapt, y_adapt, old_tree=mutant_tree,
+                                w_simp=w_simp, w_simi=w_simi,
+                                max_depth=max_depth, grow_func=keep_remine_prune_alg.sklearn_grow_func,
+                                cache=rulesrepair_cache, forced_keep_ids=forced_ids,
+                                grow_params=grow_kwargs(config),
                             )
+                            rulesrepair_grow_time_sec = time.perf_counter() - rulesrepair_start
+
+                            pred_new_adapt = predict(new_tree, X_adapt, cache=rulesrepair_cache)
+                            pred_new_test = predict(new_tree, X_test, cache=rulesrepair_cache)
+                            f1_new_adapt = f1_macro(y_adapt, pred_new_adapt)
+                            f1_new_test = f1_macro(y_test, pred_new_test)
+                            acc_new_adapt = acc_score(y_adapt, pred_new_adapt)
+                            acc_new_test = acc_score(y_test, pred_new_test)
+
+                            n_total = count_nodes(new_tree)
+                            n_new = count_new_nodes(new_tree)
+
+                            rs_new = tuple_tree_conversion(new_tree)
+                            sim_old_new = rule_set_similarity(rs_mutant, rs_new)
+                            sim_old_new_labeled = rule_set_similarity_labeled(rs_mutant, rs_new)
+                            sim_old_new_jaccard = jaccard_rule_set_similarity(rs_mutant, rs_new)
+
+                            mark_reaudit_nodes(mutant_tree, new_tree)
+                            _, _, pct_reaudit_new = reaudit_summary(new_tree)
+
+                            row = {
+                                "trial_id": f"{trial['trial_id']}_fixedleaf{leaf_id}" if fixed else trial["trial_id"],
+                                "scenario": 3,
+                                "operator": trial["operator"],
+                                "mutation_index": trial["mutation_index"],
+                                "mutation_node_id": trial["mutation_node_id"],
+                                "mutation_description": trial["mutation_description"],
+                                "mutation_acc_before": trial["mutation_acc_before"],
+                                "mutation_acc_after": trial["mutation_acc_after"],
+                                "mutation_degradation": trial["mutation_degradation"],
+                                "n_alternatives_tried": trial["n_alternatives_tried"],
+                                "mining_config": config["name"],
+                                "mining_algorithm": config["algorithm"],
+                                "mining_criterion": config["criterion"],
+                                "min_samples_leaf_pct": config["min_samples_leaf_pct"],
+                                "min_samples_leaf": config["min_samples_leaf"],
+                                "w_simp": w_simp,
+                                "w_simi": w_simi,
+                                "t": None,  # kept for CSV-schema compat; no longer swept
+                                "delta_f1_old": baseline_f1 - f1_old_test,
+                                "delta_acc_old": baseline_acc - acc_old_test,
+                                "f1_old_adapt": f1_old_adapt,
+                                "f1_old_test": f1_old_test,
+                                "acc_old_adapt": acc_old_adapt,
+                                "acc_old_test": acc_old_test,
+                                "f1_new_adapt": f1_new_adapt,
+                                "f1_new_test": f1_new_test,
+                                "acc_new_adapt": acc_new_adapt,
+                                "acc_new_test": acc_new_test,
+                                "total_nodes": n_total,
+                                "new_nodes": n_new,
+                                "pct_to_reaudit": round(100 * n_new / n_total, 1) if n_total else 0.0,
+                                "pct_reaudit_new": pct_reaudit_new,
+                                "sim_old_new": round(sim_old_new, 4),
+                                "sim_old_new_labeled": round(sim_old_new_labeled, 4),
+                                "sim_old_new_jaccard": round(sim_old_new_jaccard, 4),
+                                "f1_cart_adapt": f1_cart_adapt,
+                                "f1_cart_test": f1_cart_test,
+                                "acc_cart_adapt": acc_cart_adapt,
+                                "acc_cart_test": acc_cart_test,
+                                "cart_total_nodes": cart_total_nodes,
+                                "cart_pct_to_reaudit": 100.0 if cart_tree is not None else None,
+                                "pct_reaudit_cart": pct_reaudit_cart,
+                                "sim_old_cart": round(sim_old_cart, 4) if sim_old_cart is not None else None,
+                                "sim_old_cart_labeled": round(sim_old_cart_labeled, 4) if sim_old_cart_labeled is not None else None,
+                                "sim_old_cart_jaccard": round(sim_old_cart_jaccard, 4) if sim_old_cart_jaccard is not None else None,
+                                "cart_train_time_sec": round(cart_train_time_sec, 6),
+                                "rulesrepair_grow_time_sec": round(rulesrepair_grow_time_sec, 6),
+                                "f1_j48_adapt": f1_j48_adapt,
+                                "f1_j48_test": f1_j48_test,
+                                "acc_j48_adapt": acc_j48_adapt,
+                                "acc_j48_test": acc_j48_test,
+                                "j48_total_nodes": j48_total_nodes,
+                                "j48_pct_to_reaudit": 100.0 if j48_tree is not None else None,
+                                "pct_reaudit_j48": pct_reaudit_j48,
+                                "sim_old_j48": round(sim_old_j48, 4) if sim_old_j48 is not None else None,
+                                "sim_old_j48_labeled": round(sim_old_j48_labeled, 4) if sim_old_j48_labeled is not None else None,
+                                "sim_old_j48_jaccard": round(sim_old_j48_jaccard, 4) if sim_old_j48_jaccard is not None else None,
+                                "j48_train_time_sec": round(j48_train_time_sec, 6),
+                                "f1_reptree_adapt": f1_reptree_adapt,
+                                "f1_reptree_test": f1_reptree_test,
+                                "acc_reptree_adapt": acc_reptree_adapt,
+                                "acc_reptree_test": acc_reptree_test,
+                                "reptree_total_nodes": reptree_total_nodes,
+                                "reptree_pct_to_reaudit": 100.0 if reptree_tree is not None else None,
+                                "pct_reaudit_reptree": pct_reaudit_reptree,
+                                "sim_old_reptree": round(sim_old_reptree, 4) if sim_old_reptree is not None else None,
+                                "sim_old_reptree_labeled": round(sim_old_reptree_labeled, 4) if sim_old_reptree_labeled is not None else None,
+                                "sim_old_reptree_jaccard": round(sim_old_reptree_jaccard, 4) if sim_old_reptree_jaccard is not None else None,
+                                "reptree_train_time_sec": round(reptree_train_time_sec, 6),
+                            }
+                            if fixed:
+                                row["fixed_leaf_id"] = leaf_id
+                            rows_by_config[config["name"]].append(row)
+
+                            tree_record = {
+                                "trial_id": trial["trial_id"],
+                                "operator": trial["operator"],
+                                "mutation_index": trial["mutation_index"],
+                                "mining_config": config["name"],
+                                "w_simp": w_simp,
+                                "w_simi": w_simi,
+                                "t": None,
+                                "old_tree": mutant_tree,
+                                "new_tree": new_tree,
+                                "cart_tree": cart_tree,
+                            }
+                            if fixed:
+                                tree_record["fixed_leaf_id"] = leaf_id
+                            tree_records_by_config[config["name"]].append(tree_record)
+
+                            done += 1
+                            if done % progress_every == 0 or done == total_evals:
+                                elapsed = time.time() - start_time
+                                rate = done / elapsed if elapsed > 0 else 0
+                                eta_min = (total_evals - done) / rate / 60 if rate > 0 else float("inf")
+                                print(
+                                    f"  {done}/{total_evals} ({100 * done / total_evals:.1f}%), "
+                                    f"trial {trial_idx}/{len(trials)}, "
+                                    f"elapsed {elapsed / 60:.1f} min, ETA {eta_min:.1f} min",
+                                    flush=True,
+                                )
+
+    manifest_tmp_path.replace(manifest_path)
 
     empty_columns = RESULTS_COLUMNS + ["fixed_leaf_id"] if fixed else RESULTS_COLUMNS
-    out = pd.DataFrame(rows) if rows else pd.DataFrame(columns=empty_columns)
-    out.to_csv(out_csv, index=False)
+    sweep_csv = out_dir / "baseline_sweep.csv"
+    pd.DataFrame(sweep_rows, columns=SWEEP_COLUMNS).to_csv(sweep_csv, index=False)
+    print(f"Baseline sweep: {len(sweep_rows)} rows -> {sweep_csv}", flush=True)
 
-    trees_pkl = out_dir / "trees.pkl"
-    with open(trees_pkl, "wb") as f:
-        pickle.dump(tree_records, f)
+    configs_dir = out_dir / "configs"
+    n_rows_total = 0
+    for config in GROW_CONFIGS:
+        config_dir = configs_dir / config["name"]
+        config_dir.mkdir(parents=True, exist_ok=True)
+        config_rows = rows_by_config[config["name"]]
+        out = pd.DataFrame(config_rows) if config_rows else pd.DataFrame(columns=empty_columns)
+        out.to_csv(config_dir / "results.csv", index=False)
+        with open(config_dir / "trees.pkl", "wb") as f:
+            pickle.dump(tree_records_by_config[config["name"]], f)
+        n_rows_total += len(out)
 
     elapsed_total = time.time() - start_time
-    print(f"Done in {elapsed_total / 60:.1f} min: {len(trials)} trials x {len(w_simps)}x{len(w_simis)} "
-          f"(w_simp,w_simi) -> {len(out)} rows -> {out_csv}", flush=True)
-    print(f"Saved {len(tree_records)} tree record(s) (old_tree/new_tree/cart_tree) -> {trees_pkl}", flush=True)
+    print(f"Done in {elapsed_total / 60:.1f} min: {len(trials)} trials x {len(GROW_CONFIGS)} mining configs x "
+          f"{len(w_simps)}x{len(w_simis)} (w_simp,w_simi) -> {n_rows_total} rows in {len(GROW_CONFIGS)} "
+          f"results.csv files under {configs_dir}", flush=True)
 
-    if not trials:
-        print(f"Skipping Pareto analysis: '{dp}' had zero mutant trials, nothing to analyze.", flush=True)
-        analysis_dir = None
-    else:
-        print(f"Scenario 3: per-trial Pareto analysis -> {out_dir / 'analysis'}", flush=True)
-        analysis_dir = run_trial_pareto_analysis(
-            csv_path=out_csv, out_dir=out_dir / "analysis", aggregate=False,
-        )
-
-    return manifest_path, out_csv, trees_pkl, analysis_dir
+    return manifest_path, configs_dir, None, None
 
 run_tree_mutation_repair = run_mutated_repair
 
@@ -500,7 +547,7 @@ def main():
         "--operators", default=None
     )
     parser.add_argument("--w-simps", default="0.0,0.001,0.005,0.01,0.02,0.05,0.1,0.2,0.3,0.5,0.75,1.0,1.5,2.0,3.0,5.0", help="Comma-separated list of w_simp values to sweep. Normalized scale (complexity term divided by nodes_max=2**(max_depth+1)-1). Extra resolution below 0.02 since some hospital_billing dps collapse to a trivial 1-node tree already at the first coarser nonzero value.")
-    parser.add_argument("--w-simis", default="0.0,0.001,0.005,0.01,0.02,0.05,0.1,0.2,0.3,0.5,0.75,1.0,1.5", help="Comma-separated list of w_simi values to sweep. Normalized scale (audit term divided by nodes_max). Narrower top end than --w-simps: w_simi saturates by ~0.5-1 in every decision point checked.")
+    parser.add_argument("--w-simis", default="0.0,0.001,0.005,0.01,0.02,0.05,0.1,0.2,0.3,0.5,0.75,1.0,1.5", help="Comma-separated list of w_simi values to sweep. Normalized scale (kept-nodes term / nodes_max). Narrower top end than --w-simps: w_simi saturates by ~0.5-1 in every decision point checked.")
     parser.add_argument("--max-depth", type=int, default=4)
     parser.add_argument("--p", type=float, default=DEFAULT_P, help="Fraction of compatible nodes to target per operator, default 0.2.")
     parser.add_argument("--degradation-threshold", type=float, default=DEFAULT_DEGRADATION_THRESHOLD, help="Minimum accuracy drop, default 0.2.")
@@ -514,6 +561,11 @@ def main():
     )
     parser.add_argument(
         "--fixed", action=argparse.BooleanOptionalAction, default=False
+    )
+    parser.add_argument(
+        "--regenerate-mutants", action=argparse.BooleanOptionalAction, default=False,
+        help="Generate new mutants even if --out-dir already has a manifest.jsonl with its mutant trees "
+             "(by default existing mutants are reused and --p/--seed/--degradation-threshold are ignored)."
     )
     parser.add_argument("--out-dir", required=True)
     parser.add_argument(
@@ -535,6 +587,7 @@ def main():
         regrow_max_depth=args.regrow_max_depth, regrow_split_prob=args.regrow_split_prob,
         fixed=args.fixed, baseline_tree_cache_dir=args.baseline_tree_cache_dir,
         max_alternatives_per_node=args.max_alternatives_per_node,
+        regenerate_mutants=args.regenerate_mutants,
     )
 
 

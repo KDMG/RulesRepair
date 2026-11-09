@@ -27,8 +27,8 @@ def run_both(
     p=DEFAULT_P, degradation_threshold=DEFAULT_DEGRADATION_THRESHOLD, seed=0,
     n_thresholds=10, max_regrow_attempts=DEFAULT_MAX_REGROW_ATTEMPTS,
     regrow_max_depth=DEFAULT_REGROW_MAX_DEPTH, regrow_split_prob=DEFAULT_REGROW_SPLIT_PROB,
-    fixed=False, skip_baseline=False, baseline_tree_cache_dir=None,
-    max_alternatives_per_node=DEFAULT_MAX_ALTERNATIVES_PER_NODE,
+    fixed=False, skip_baseline=True, baseline_tree_cache_dir=None,
+    max_alternatives_per_node=DEFAULT_MAX_ALTERNATIVES_PER_NODE, regenerate_mutants=False,
 ):
     df_data = pd.read_csv(data_csv)
     preflight_adapt, preflight_test = split_adapt_test(df_data, target, adapt_fraction, split_method, split_seed)
@@ -54,7 +54,7 @@ def run_both(
 
     baseline_outputs = None
     if skip_baseline:
-        print(f"baseline repair skipped (skip_baseline=True, reused from elsewhere): {dp}")
+        print(f"baseline repair (no mutation) skipped: {dp}")
     else:
         print(f"baseline repair (no perturbation){' [--fixed]' if fixed else ''}: {dp}")
         baseline_outputs = run_baseline_repair(
@@ -77,7 +77,7 @@ def run_both(
         n_thresholds=n_thresholds, max_regrow_attempts=max_regrow_attempts,
         regrow_max_depth=regrow_max_depth, regrow_split_prob=regrow_split_prob,
         fixed=fixed, baseline_tree_cache_dir=baseline_tree_cache_dir,
-        max_alternatives_per_node=max_alternatives_per_node,
+        max_alternatives_per_node=max_alternatives_per_node, regenerate_mutants=regenerate_mutants,
     )
     mutated_outputs = {
         "manifest": manifest_path, "results_csv": results_csv,
@@ -109,7 +109,7 @@ def main():
     parser.add_argument("--max-depth", type=int, default=4)
 
     parser.add_argument("--w-simps", default="0.0,0.001,0.005,0.01,0.02,0.05,0.1,0.2,0.3,0.5,0.75,1.0,1.5,2.0,3.0,5.0", help="Comma-separated w_simp grid, shared by both runs. Normalized scale (complexity term / nodes_max).")
-    parser.add_argument("--w-simis", default="0.0,0.001,0.005,0.01,0.02,0.05,0.1,0.2,0.3,0.5,0.75,1.0,1.5", help="Comma-separated w_simi grid, shared by both runs. Normalized scale (audit term / nodes_max).")
+    parser.add_argument("--w-simis", default="0.0,0.001,0.005,0.01,0.02,0.05,0.1,0.2,0.3,0.5,0.75,1.0,1.5", help="Comma-separated w_simi grid, shared by both runs. Normalized scale (kept-nodes term / nodes_max).")
     parser.add_argument(
         "--save-pareto-trees", action=argparse.BooleanOptionalAction, default=False,
         help="Baseline only: regenerate/pickle every per-trial Pareto-optimal repaired tree to baseline/pareto_trees.pkl.",
@@ -148,16 +148,17 @@ def main():
     )
     parser.add_argument("--out-dir", required=True, help="Base output directory; baseline/ and mutated/ (or baseline_fixed/ and mutated_fixed/ with --fixed) subfolders are created inside it.")
     parser.add_argument(
-        "--skip-baseline", action=argparse.BooleanOptionalAction, default=False,
-        help="2026 addition: skip baseline repair entirely (only run mutated repair). Baseline "
-             "depends only on data-csv/split-seed, never on --seed -- use this for every seed "
-             "after the first in a --seed sweep over the SAME dp, and copy the first seed's "
-             "baseline/ output into the others instead (see run_repair_all_seeds.py).",
+        "--skip-baseline", action=argparse.BooleanOptionalAction, default=True,
+        help="Skip the no-mutation baseline repair (default: skipped); pass --no-skip-baseline to run it.",
+    )
+    parser.add_argument(
+        "--regenerate-mutants", action=argparse.BooleanOptionalAction, default=False,
+        help="Forwarded to run_mutated_repair.py: generate new mutants even if they already exist in the output folder.",
     )
     parser.add_argument(
         "--baseline-tree-cache-dir", default=None,
         help="2026 addition: forwarded to run_mutated_repair.py's --baseline-tree-cache-dir -- "
-             "caches the once-per-dp CART/C4.5(bounded+unbounded)/REPTree "
+             "caches the once-per-dp CART/C4.5/REPTree "
              "fits so a --seed sweep over the same dp fits them only once. See that script's "
              "own --help for details.",
     )
@@ -179,6 +180,7 @@ def main():
         fixed=args.fixed, skip_baseline=args.skip_baseline,
         baseline_tree_cache_dir=args.baseline_tree_cache_dir,
         max_alternatives_per_node=args.max_alternatives_per_node,
+        regenerate_mutants=args.regenerate_mutants,
     )
 
 

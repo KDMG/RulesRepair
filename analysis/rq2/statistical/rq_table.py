@@ -8,18 +8,16 @@ from analysis.core.compare_rulesrepair_cart_dominance import (
 )
 from analysis.core.mutation_types import MUTATION_TYPES
 from analysis.rq2.statistical.igd_core import (
-    build_seed_level_table, build_trial_level_table, per_trial_igd,
+    build_seed_level_table, build_trial_level_table, per_trial_igd, load_trial_front_pairs,
     decision_point_igd_test, decision_point_igd_test_trial_level,
 )
 
 
 def _rq12_view_result(csv_paths, mutation_type, max_depth, nodes_min, tol, alpha, sd_zero_tol,
-                       baseline_acc_col="acc_cart_test", baseline_nodes_col="cart_total_nodes",
-                       baseline_jaccard_col="sim_old_cart_jaccard", baseline_label="CART"):
+                       mining_algorithm="cart", baseline_label="CART"):
     seed_table = build_seed_level_table(
         csv_paths, max_depth=max_depth, nodes_min=nodes_min, tol=tol, mutation_type=mutation_type,
-        baseline_acc_col=baseline_acc_col, baseline_nodes_col=baseline_nodes_col,
-        baseline_jaccard_col=baseline_jaccard_col,
+        mining_algorithm=mining_algorithm,
     )
     total_trials = int(seed_table["n_trials"].sum()) if len(seed_table) else 0
     if total_trials == 0:
@@ -58,38 +56,28 @@ def _rq12_view_result_from_trial_table(trial_table, alpha, sd_zero_tol, baseline
 
 
 def _rq12_view_result_trial_level(csv_paths, mutation_type, max_depth, nodes_min, tol, alpha, sd_zero_tol,
-                                   baseline_acc_col="acc_cart_test", baseline_nodes_col="cart_total_nodes",
-                                   baseline_jaccard_col="sim_old_cart_jaccard", baseline_label="CART"):
+                                   mining_algorithm="cart", baseline_label="CART"):
     trial_table = build_trial_level_table(
         csv_paths, max_depth=max_depth, nodes_min=nodes_min, tol=tol, mutation_type=mutation_type,
-        baseline_acc_col=baseline_acc_col, baseline_nodes_col=baseline_nodes_col,
-        baseline_jaccard_col=baseline_jaccard_col,
+        mining_algorithm=mining_algorithm,
     )
     return _rq12_view_result_from_trial_table(trial_table, alpha, sd_zero_tol, baseline_label)
 
 
-def _no_mutation_diff_for_dp(csv_paths, max_depth, nodes_min, tol,
-                              baseline_acc_col="acc_cart_test", baseline_nodes_col="cart_total_nodes",
-                              baseline_jaccard_col="sim_old_cart_jaccard"):
+def _no_mutation_diff_for_dp(csv_paths, max_depth, nodes_min, tol, mining_algorithm="cart"):
     if not csv_paths:
         return None
-    marker = "/mutated/analysis/pareto_per_trial.csv"
+    marker = "/mutated/baseline_sweep.csv"
     p = str(csv_paths[0])
     if marker not in p:
         return None
-    baseline_csv = Path(p.replace(marker, "/baseline/results.csv"))
-    if not baseline_csv.exists():
+    baseline_sweep = Path(p.replace(marker, "/baseline/baseline_sweep.csv"))
+    if not baseline_sweep.exists():
         return None
-    df = pd.read_csv(baseline_csv)
-    if df["trial_id"].nunique() != 1:
+    pairs = load_trial_front_pairs(baseline_sweep, mining_algorithm, max_depth=max_depth, nodes_min=nodes_min, tol=tol)
+    if len(pairs) != 1:
         return None
-    per_trial = per_trial_igd(
-        df, max_depth=max_depth, nodes_min=nodes_min, tol=tol,
-        baseline_acc_col=baseline_acc_col, baseline_nodes_col=baseline_nodes_col,
-        baseline_jaccard_col=baseline_jaccard_col,
-    )
-    if len(per_trial) != 1:
-        return None
+    per_trial = per_trial_igd(pairs, tol=tol)
     row = per_trial.iloc[0]
     if pd.isna(row["igd_rulesrepair"]) or pd.isna(row["igd_baseline"]):
         return None
@@ -97,8 +85,7 @@ def _no_mutation_diff_for_dp(csv_paths, max_depth, nodes_min, tol,
 
 
 DEFAULT_BASELINES = [
-    {"label": "CART", "acc_col": "acc_cart_test", "nodes_col": "cart_total_nodes",
-     "jaccard_col": "sim_old_cart_jaccard"},
+    {"label": "CART", "mining_algorithm": "cart"},
 ]
 
 
@@ -123,8 +110,7 @@ def build_unified_results_table(dataset_csv_paths, mutation_types=MUTATION_TYPES
             no_mutation_by_baseline = {
                 baseline["label"]: _no_mutation_diff_for_dp(
                     paths, max_depth, nodes_min, tol,
-                    baseline_acc_col=baseline["acc_col"], baseline_nodes_col=baseline["nodes_col"],
-                    baseline_jaccard_col=baseline["jaccard_col"],
+                    mining_algorithm=baseline["mining_algorithm"],
                 )
                 for baseline in baselines
             }
@@ -133,8 +119,7 @@ def build_unified_results_table(dataset_csv_paths, mutation_types=MUTATION_TYPES
                 for baseline in baselines:
                     rq12 = _rq12_view_result(
                         paths, mutation_type, max_depth, nodes_min, tol, alpha, sd_zero_tol,
-                        baseline_acc_col=baseline["acc_col"], baseline_nodes_col=baseline["nodes_col"],
-                        baseline_jaccard_col=baseline["jaccard_col"], baseline_label=baseline["label"],
+                        mining_algorithm=baseline["mining_algorithm"], baseline_label=baseline["label"],
                     )
                     row = {
                         "dataset": dataset, "decision_point": dp_label, "view": tag,
@@ -168,8 +153,7 @@ def build_unified_results_table_trial_level(dataset_csv_paths, mutation_types=MU
             no_mutation_by_baseline = {
                 baseline["label"]: _no_mutation_diff_for_dp(
                     paths, max_depth, nodes_min, tol,
-                    baseline_acc_col=baseline["acc_col"], baseline_nodes_col=baseline["nodes_col"],
-                    baseline_jaccard_col=baseline["jaccard_col"],
+                    mining_algorithm=baseline["mining_algorithm"],
                 )
                 for baseline in baselines
             }
@@ -178,8 +162,7 @@ def build_unified_results_table_trial_level(dataset_csv_paths, mutation_types=MU
                 for baseline in baselines:
                     rq12 = _rq12_view_result_trial_level(
                         paths, mutation_type, max_depth, nodes_min, tol, alpha, sd_zero_tol,
-                        baseline_acc_col=baseline["acc_col"], baseline_nodes_col=baseline["nodes_col"],
-                        baseline_jaccard_col=baseline["jaccard_col"], baseline_label=baseline["label"],
+                        mining_algorithm=baseline["mining_algorithm"], baseline_label=baseline["label"],
                     )
                     row = {
                         "dataset": dataset, "decision_point": dp_label, "view": tag,
@@ -193,7 +176,7 @@ def build_unified_results_table_trial_level(dataset_csv_paths, mutation_types=MU
 
 
 def _build_dataset_pooled_trial_table(csv_paths, mutation_type, max_depth, nodes_min, tol,
-                                       baseline_acc_col, baseline_nodes_col, baseline_jaccard_col):
+                                       mining_algorithm):
     by_dp = {}
     for p in csv_paths:
         by_dp.setdefault(infer_dp_label(p), []).append(p)
@@ -202,8 +185,7 @@ def _build_dataset_pooled_trial_table(csv_paths, mutation_type, max_depth, nodes
     for dp_label in sorted(by_dp):
         t = build_trial_level_table(
             by_dp[dp_label], max_depth=max_depth, nodes_min=nodes_min, tol=tol, mutation_type=mutation_type,
-            baseline_acc_col=baseline_acc_col, baseline_nodes_col=baseline_nodes_col,
-            baseline_jaccard_col=baseline_jaccard_col,
+            mining_algorithm=mining_algorithm,
         )
         if len(t):
             tables.append(t)
@@ -213,13 +195,11 @@ def _build_dataset_pooled_trial_table(csv_paths, mutation_type, max_depth, nodes
 
 
 def _rq12_view_result_trial_level_pooled_dataset(csv_paths, mutation_type, max_depth, nodes_min, tol, alpha,
-                                                   sd_zero_tol, baseline_acc_col="acc_cart_test",
-                                                   baseline_nodes_col="cart_total_nodes",
-                                                   baseline_jaccard_col="sim_old_cart_jaccard",
+                                                   sd_zero_tol, mining_algorithm="cart",
                                                    baseline_label="CART"):
     trial_table = _build_dataset_pooled_trial_table(
         csv_paths, mutation_type, max_depth, nodes_min, tol,
-        baseline_acc_col, baseline_nodes_col, baseline_jaccard_col,
+        mining_algorithm,
     )
     return _rq12_view_result_from_trial_table(trial_table, alpha, sd_zero_tol, baseline_label)
 
@@ -241,8 +221,7 @@ def build_unified_results_table_trial_level_by_dataset(dataset_csv_paths, mutati
             for baseline in baselines:
                 rq12 = _rq12_view_result_trial_level_pooled_dataset(
                     csv_paths, mutation_type, max_depth, nodes_min, tol, alpha, sd_zero_tol,
-                    baseline_acc_col=baseline["acc_col"], baseline_nodes_col=baseline["nodes_col"],
-                    baseline_jaccard_col=baseline["jaccard_col"], baseline_label=baseline["label"],
+                    mining_algorithm=baseline["mining_algorithm"], baseline_label=baseline["label"],
                 )
                 row = {"dataset": dataset, "view": tag, "baseline": baseline["label"]}
                 row.update(rq12)
@@ -262,10 +241,10 @@ VIEW_HEADERS = {
 }
 
 
-BASELINE_DISPLAY = {"J48-unbounded": "J48-unb."}
+BASELINE_DISPLAY = {}
 
 
-BASELINE_DISPLAY_BY_DATASET = {"J48": "C4.5", "J48-unbounded": "C4.5-unb."}
+BASELINE_DISPLAY_BY_DATASET = {"J48": "C4.5"}
 
 
 DATASET_DISPLAY = {
@@ -442,10 +421,8 @@ def main_rq_table(argv=None):
         "--sd-zero-tol", type=float, default=DEFAULT_TOL
     )
     parser.add_argument(
-        "--baseline-acc-col", default="acc_cart_test"
+        "--mining-algorithm", default="cart", choices=["cart", "j48", "reptree"]
     )
-    parser.add_argument("--baseline-nodes-col", default="cart_total_nodes")
-    parser.add_argument("--baseline-jaccard-col", default="sim_old_cart_jaccard")
     parser.add_argument(
         "--baseline-label", default="CART"
     )
@@ -497,8 +474,7 @@ def main_rq_table(argv=None):
             max_depth=args.max_depth, nodes_min=args.nodes_min, tol=args.tol, alpha=args.alpha,
             sd_zero_tol=args.sd_zero_tol,
             baselines=[{
-                "label": args.baseline_label, "acc_col": args.baseline_acc_col,
-                "nodes_col": args.baseline_nodes_col, "jaccard_col": args.baseline_jaccard_col,
+                "label": args.baseline_label, "mining_algorithm": args.mining_algorithm,
             }],
         )
         csv_out = out_dir / f"{csv_basename}_{args.dataset}.csv"

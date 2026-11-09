@@ -15,7 +15,8 @@ DEFAULT_DEGRADATION_THRESHOLD = 0.20
 DEFAULT_MAX_REGROW_ATTEMPTS = 10
 DEFAULT_REGROW_MAX_DEPTH = 3
 DEFAULT_REGROW_SPLIT_PROB = 0.7
-DEFAULT_MAX_ALTERNATIVES_PER_NODE = None
+DEFAULT_MAX_TREE_DEPTH = 4
+DEFAULT_MAX_ALTERNATIVES_PER_NODE = 1000
 
 OPERATOR_NODE_KIND = {
     "prune": "internal",
@@ -40,6 +41,18 @@ def _node_pool(root, kind):
     raise ValueError(f"unknown node kind: {kind}")
 
 
+def _node_depth(node):
+    depth = 0
+    while node.parent is not None:
+        node = node.parent
+        depth += 1
+    return depth
+
+
+def tree_depth(root):
+    return max(_node_depth(n) for n in get_all_nodes(root))
+
+
 def _accuracy(root, X_np, y):
     preds = [root.predict(row) for row in X_np]
     return float(np.mean([p == t for p, t in zip(preds, y)]))
@@ -47,7 +60,7 @@ def _accuracy(root, X_np, y):
 
 def _alternatives_for_node(operator, node, classes, thresholds_pool, columns,
                             rng, max_regrow_attempts, regrow_max_depth, regrow_split_prob,
-                            max_alternatives=None):
+                            max_alternatives=None, max_tree_depth=DEFAULT_MAX_TREE_DEPTH):
     if operator == "prune":
         alts = [c for c in classes if c != node.label] or list(classes)
         rng.shuffle(alts)
@@ -99,6 +112,9 @@ def _alternatives_for_node(operator, node, classes, thresholds_pool, columns,
             yield f"feature={columns[pos]},threshold={thr}", apply_fn
 
     elif operator in ("regrow_leaf", "regrow_internal"):
+        subtree_depth = min(regrow_max_depth, max_tree_depth - _node_depth(node))
+        if subtree_depth < 1:
+            return
         for attempt in range(max_regrow_attempts):
             seed_for_attempt = rng.randrange(2**31)
             def apply_fn(n, _root_ref=node, _seed=seed_for_attempt):
@@ -107,7 +123,7 @@ def _alternatives_for_node(operator, node, classes, thresholds_pool, columns,
                 while cloned_root.parent is not None:
                     cloned_root = cloned_root.parent
                 regrow(n, cloned_root, thresholds_pool, columns, classes,
-                       max_depth=regrow_max_depth, split_prob=regrow_split_prob,
+                       max_depth=subtree_depth, split_prob=regrow_split_prob,
                        rng=local_rng)
             yield f"regrow_attempt={attempt}", apply_fn
 
@@ -121,8 +137,11 @@ def generate_mutants(root, X_train, columns, classes, X_eval, y_eval,
                       max_regrow_attempts=DEFAULT_MAX_REGROW_ATTEMPTS,
                       regrow_max_depth=DEFAULT_REGROW_MAX_DEPTH,
                       regrow_split_prob=DEFAULT_REGROW_SPLIT_PROB,
-                      max_alternatives_per_node=DEFAULT_MAX_ALTERNATIVES_PER_NODE):
+                      max_alternatives_per_node=DEFAULT_MAX_ALTERNATIVES_PER_NODE,
+                      max_tree_depth=DEFAULT_MAX_TREE_DEPTH):
     from mutations.tree_mutations import prepare_thresholds_pool
+    if tree_depth(root) > max_tree_depth:
+        raise ValueError(f"T_old has depth {tree_depth(root)} > max_tree_depth={max_tree_depth}")
     # Converted once here instead of inside _accuracy(): X_eval never changes across
     # the many candidate evaluations below, only the tree does, and re-running
     # X_eval.to_numpy() on every candidate was both slow and, since X_eval mixes
@@ -175,12 +194,17 @@ def generate_mutants(root, X_train, columns, classes, X_eval, y_eval,
             for description, apply_fn in _alternatives_for_node(
                 operator, node, classes, thresholds_pool, columns, alt_rng,
                 max_regrow_attempts, regrow_max_depth, regrow_split_prob,
-                max_alternatives=max_alternatives_per_node,
+                max_alternatives=max_alternatives_per_node, max_tree_depth=max_tree_depth,
             ):
                 n_alt_tried += 1
                 candidate_root = copy.deepcopy(root)
                 candidate_node = find_node_by_id(candidate_root, node_id)
                 apply_fn(candidate_node)
+                if tree_depth(candidate_root) > max_tree_depth:
+                    raise ValueError(
+                        f"{operator} on node {node_id} produced a tree of depth "
+                        f"{tree_depth(candidate_root)} > max_tree_depth={max_tree_depth}"
+                    )
                 acc_after = _accuracy(candidate_root, X_eval_np, y_eval)
                 degradation = acc_orig - acc_after
                 if degradation >= degradation_threshold:
