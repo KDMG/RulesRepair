@@ -33,14 +33,14 @@ def parse_args(argv):
     return parser.parse_args(argv)
 
 
-def run_one(dp_csv, args, out_base, log_suffix, fixed_args, extra_flags):
+def run_one(dp_csv, args, out_base, log_suffix, fixed_args, extra_flags, tag=""):
     import subprocess
 
     dp = dp_csv.stem
     if dp.startswith("dp_"):
         dp = dp[len("dp_"):]
     log_path = out_base / f"{dp}{log_suffix}.log"
-    print(f"{dp}: start", flush=True)
+    print(f"{tag}{dp}: start", flush=True)
 
     cmd = [
         sys.executable, "-m", "repair.run_repair",
@@ -67,16 +67,14 @@ def run_one(dp_csv, args, out_base, log_suffix, fixed_args, extra_flags):
                     skipped = True
                     break
         if skipped:
-            print(f"{dp}: skipped (see {log_path})", flush=True)
+            print(f"{tag}{dp}: skipped (see {log_path})", flush=True)
         else:
-            print(f"{dp}: done", flush=True)
+            print(f"{tag}{dp}: done", flush=True)
     else:
         print(f"FAILED: {dp} (see {log_path})", flush=True)
 
 
-def main(argv=None):
-    args = parse_args(argv if argv is not None else sys.argv[1:])
-
+def prepare(args):
     dp_dir = Path(args.dp_dir)
     out_base = Path(args.out_base)
     out_base.mkdir(parents=True, exist_ok=True)
@@ -93,8 +91,15 @@ def main(argv=None):
         extra_flags.append("--regenerate-mutants")
 
     dp_files = sorted(dp_dir.glob("dp_*.csv"))
+    return out_base, fixed_args, log_suffix, extra_flags, dp_files
+
+
+def main(argv=None):
+    args = parse_args(argv if argv is not None else sys.argv[1:])
+
+    out_base, fixed_args, log_suffix, extra_flags, dp_files = prepare(args)
     if not dp_files:
-        print(f"No dp_*.csv files found in {dp_dir}.", flush=True)
+        print(f"No dp_*.csv files found in {args.dp_dir}.", flush=True)
         return 1
 
     print(f"Parallelism: up to {args.jobs} decision point(s) at a time.", flush=True)

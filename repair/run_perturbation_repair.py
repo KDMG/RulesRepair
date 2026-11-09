@@ -4,6 +4,7 @@ import pickle
 import time
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 from sklearn.metrics import f1_score, accuracy_score
 
@@ -46,6 +47,27 @@ def extend_columns_for_regrow(df, cat_cols, base_columns):
     return list(base_columns) + novel
 
 
+def _predict_vectorized(node, X_np):
+    out = np.empty(len(X_np), dtype=object)
+
+    def assign(current, idx):
+        if current.is_leaf() or idx.size == 0:
+            out[idx] = current.label
+            return
+        rest = idx
+        for cond, child in zip(current.conditions, current.children):
+            if rest.size == 0:
+                break
+            fired = np.asarray(cond.operator.op(X_np[rest, cond.attribute_pos], cond.threshold), dtype=bool)
+            assign(child, rest[fired])
+            rest = rest[~fired]
+        if rest.size:
+            out[rest] = current.label
+
+    assign(node, np.arange(len(X_np)))
+    return list(out)
+
+
 def predict(node, X, cache=None):
     if cache is not None:
         bucket = cache.setdefault('X_numpy', {})
@@ -56,7 +78,7 @@ def predict(node, X, cache=None):
             bucket[key] = X_np
     else:
         X_np = X.to_numpy()
-    return [node.predict(row) for row in X_np]
+    return _predict_vectorized(node, X_np)
 
 
 def f1_macro(y_true, y_pred):

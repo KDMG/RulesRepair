@@ -191,9 +191,19 @@ def recost(X, y, node, metadata, fix_label=False, cache=None):
 
 def prune(X, y, node, metadata, cache=None):
     # x, y must be filtered to the current node
-    pred = best_pred(y, metadata.classes, metadata)
-    value = count_values(y, metadata.classes)
-    impurity = gini_impurity(y)
+    stats = None
+    if cache is not None:
+        stats_bucket = cache.setdefault('prune_stats', {})
+        stats = stats_bucket.get(id(node))
+    if stats is None:
+        stats = (
+            best_pred(y, metadata.classes, metadata),
+            count_values(y, metadata.classes),
+            gini_impurity(y),
+        )
+        if cache is not None:
+            stats_bucket[id(node)] = stats
+    pred, value, impurity = stats[0], list(stats[1]), stats[2]
 
     prune_tree = CostNode(pred, _uid(), value, impurity)
     prune_tree.recost(metadata)
