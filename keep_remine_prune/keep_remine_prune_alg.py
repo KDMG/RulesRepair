@@ -8,7 +8,10 @@ from .conversion import sklearn_to_tree
 from .cost_tree import CostNode, CostMetadata, to_cost_tree
 from .tree import DecisionNode, count_values, gini_impurity
 from .tree import grow_tree as our_grow_tree
+from .param_grid import DEFAULT_GROW_PARAMS
 
+
+REPTREE_NUM_FOLDS = 3
 
 OLD = False # old node (is_new = False)
 NEW = True  # new node (is_new = True)
@@ -28,19 +31,32 @@ def relabel(node, id_counter=1):
     return id_counter
 
 
-def sklearn_grow_func(X, y, max_depth, metadata):
-    clf = sklearn.tree.DecisionTreeClassifier(max_depth=max_depth, min_samples_leaf=0.02, random_state=0)
+def sklearn_grow_func(X, y, max_depth, metadata, algorithm="cart", criterion="gini", min_samples_leaf=0.02):
+    if algorithm == "j48" or algorithm == "reptree":
+        return weka_grow_func(X, y, max_depth, metadata, algorithm, min_samples_leaf)
+    clf = sklearn.tree.DecisionTreeClassifier(max_depth=max_depth, min_samples_leaf=min_samples_leaf, criterion=criterion, random_state=0)
     clf = clf.fit(X, y)
     return sklearn_to_tree(clf, metadata.column_names)
 
 
-def tree_grow_func(X, y, max_depth, metadata):
+def weka_grow_func(X, y, max_depth, metadata, algorithm, min_samples_leaf):
+    from mining.weka_baselines import build_j48_tree, build_reptree_tree
+
+    if len(y) == 0 or len(set(y.tolist())) < 2:
+        return DecisionNode(None, 0, [])
+    if algorithm == "reptree" and len(y) < REPTREE_NUM_FOLDS:
+        return DecisionNode(None, 0, [])
+    build = build_j48_tree if algorithm == "j48" else build_reptree_tree
+    return build(X, y, list(metadata.column_names), max_depth, min_samples_leaf, raise_on_error=True)
+
+
+def tree_grow_func(X, y, max_depth, metadata, **kwargs):
     # Our implementation of tree growing
     return our_grow_tree(pd.DataFrame(X, columns=metadata.column_names), y, max_depth=max_depth)
 
 
 def grow_tree(X, y, old_tree=None, max_depth=4, w_simp=1, w_simi=0.25, grow_func=tree_grow_func, cache=None,
-              forced_keep_ids=None, **kwargs):
+              forced_keep_ids=None, grow_params=None, **kwargs):
     column_names = X.columns
     if cache is not None: # for speeding up
         bucket = cache.setdefault('X_numpy', {})
@@ -55,12 +71,15 @@ def grow_tree(X, y, old_tree=None, max_depth=4, w_simp=1, w_simi=0.25, grow_func
 
     classes = list(np.unique(y))
 
+    if grow_params is None:
+        grow_params = DEFAULT_GROW_PARAMS
+
     nodes_max = 2 ** (max_depth + 1) - 1
     n_train = max(len(y), 1)
 
     metadata = CostMetadata(
         classes, column_names, w_simp, w_simi, grow_func,
-        nodes_max=nodes_max, n_train=n_train,
+        nodes_max=nodes_max, n_train=n_train, grow_params=grow_params,
     )
 
     if old_tree is None:
@@ -116,11 +135,12 @@ def best_pred(y, classes, metadata=None):
     return _majority_pred(y, classes)
 
 
-def regrow(X, y, node, max_depth, metadata, cache=None):
+def regrow(X, y, node, max_depth, metadata, cache=None, grow_params=None):
+    grow_params = grow_params or {}
     # TODO: Option to switch between sklearn and our own implementation
     if cache is not None:
         bucket = cache.setdefault('regrow', {})
-        key = (id(node), max_depth, id(metadata.grow_func))
+        key = (id(node), max_depth, id(metadata.grow_func), tuple(sorted(grow_params.items())))
         cached = bucket.get(key)
         if cached is not None:
             return cached
@@ -132,7 +152,7 @@ def regrow(X, y, node, max_depth, metadata, cache=None):
         tree = DecisionNode(None, 0, [])
     else:
         # sklearn splits are non-deterministic unless we set random_state
-        tree = metadata.grow_func(_X, _y, max_depth, metadata)
+        tree = metadata.grow_func(_X, _y, max_depth, metadata, **grow_params)
 
     tree = to_cost_tree(tree)
 
@@ -224,10 +244,9 @@ def reduce(X, y, node, max_depth, metadata, cache=None, forced_keep_ids=None):
         # comparison that merely happens to favour keep.
         return keep_tree
 
-    regrow_tree = regrow(X, y, node, max_depth, metadata, cache=cache)
     _X, _y = filter_data(X, y, node, cache=cache) # need to ensure that we filter data to just the node we are pruning
+    regrow_tree = regrow(X, y, node, max_depth, metadata, cache=cache, grow_params=metadata.grow_params)
     regrow_tree = prune(_X, _y, regrow_tree, metadata, cache=cache)
-
-    if keep_tree.total_benefit >= regrow_tree.total_benefit:
-        return keep_tree
-    return regrow_tree
+    if regrow_tree.total_benefit > keep_tree.total_benefit:
+        return regrow_tree
+    return keep_tree

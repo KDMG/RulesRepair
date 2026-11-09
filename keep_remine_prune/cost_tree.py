@@ -1,5 +1,5 @@
 import numpy as np
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Callable
 from .tree import DecisionNode, TreeMetadata
 
@@ -15,6 +15,7 @@ class CostMetadata(TreeMetadata):
     grow_func: Callable[[np.ndarray, np.ndarray, int, TreeMetadata], DecisionNode]
     nodes_max: float = 1
     n_train: float = 1
+    grow_params: dict = field(default_factory=dict)
 
 @dataclass
 class CostNode(DecisionNode):
@@ -24,8 +25,8 @@ class CostNode(DecisionNode):
     def recost(self, metadata):
         self.total_benefit = -metadata.w_simp / metadata.nodes_max
 
-        if self.is_new:
-            self.total_benefit -= metadata.w_simi / metadata.nodes_max
+        if not self.is_new:
+            self.total_benefit += metadata.w_simi / metadata.nodes_max
 
         if self.is_leaf():
             if self.label not in metadata.classes:

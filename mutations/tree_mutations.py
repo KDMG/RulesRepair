@@ -84,12 +84,6 @@ def prune(node, classes, rng=None):
 
 
 def apply_change_label(node, label, classes):
-    """Deterministic core of change_label(): set `node` (a leaf) to `label`.
-    Split out (2026) so both change_label() below (single random pick) and
-    mutations/mutation_sampling.py's enumerate-every-alternative sampler
-    apply the exact same logic instead of each having their own copy --
-    explicit user request ("everything must reference the perturbation
-    folder")."""
     node.label = label
     node.value = [1 if c == label else 0 for c in classes]
     return node
@@ -114,8 +108,6 @@ def branch_swap(node):
 
 
 def apply_change_threshold(node, threshold):
-    """Deterministic core of change_threshold() -- see apply_change_label()'s
-    docstring for why this is split out."""
     for cond in node.conditions:
         cond.threshold = threshold
     return node
@@ -131,8 +123,6 @@ def change_threshold(node, thresholds_pool, rng=None):
 
 
 def apply_change_feature(node, pos, threshold, columns):
-    """Deterministic core of change_feature() -- see apply_change_label()'s
-    docstring for why this is split out."""
     new_attribute = columns[pos]
     for cond in node.conditions:
         cond.attribute_pos = pos

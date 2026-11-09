@@ -1,3 +1,4 @@
+import math
 import re
 import subprocess
 
@@ -127,32 +128,46 @@ def parse_weka_dot(dot_text):
     return build(root_id)
 
 
-def build_j48_trees(X_adapt, y_adapt, columns, max_depth):
+def _weka_min_instances(min_samples_leaf, n_rows):
+    if min_samples_leaf >= 1:
+        return int(min_samples_leaf)
+    return max(1, math.ceil(min_samples_leaf * n_rows))
+
+
+def build_j48_tree(X_adapt, y_adapt, columns, max_depth, min_samples_leaf=None, raise_on_error=False):
     try:
         ensure_jvm()
         from weka.classifiers import Classifier
         data = _to_weka_instances(X_adapt, y_adapt, columns)
-        clf = Classifier(classname="weka.classifiers.trees.J48", options=["-B"])
+        options = ["-B"]
+        if min_samples_leaf is not None:
+            options += ["-M", str(_weka_min_instances(min_samples_leaf, len(X_adapt)))]
+        clf = Classifier(classname="weka.classifiers.trees.J48", options=options)
         clf.build_classifier(data)
         raw_root = parse_weka_dot(clf.graph)
     except Exception as ex:
+        if raise_on_error:
+            raise
         print(f"Warning: Weka J48 failed to fit this trial's D_adapt ({ex}), "
-              f"reporting None for every J48/J48-unbounded column on this row.")
-        return None, None
-    bounded = raw_to_decision_node(raw_root, X_adapt, y_adapt, columns, max_depth)
-    unbounded = raw_to_decision_node(raw_root, X_adapt, y_adapt, columns, max_depth=None)
-    return bounded, unbounded
+              f"reporting None for every J48 column on this row.")
+        return None
+    return raw_to_decision_node(raw_root, X_adapt, y_adapt, columns, max_depth)
 
 
-def build_reptree_tree(X_adapt, y_adapt, columns, max_depth):
+def build_reptree_tree(X_adapt, y_adapt, columns, max_depth, min_samples_leaf=None, raise_on_error=False):
     try:
         ensure_jvm()
         from weka.classifiers import Classifier
         data = _to_weka_instances(X_adapt, y_adapt, columns)
-        clf = Classifier(classname="weka.classifiers.trees.REPTree", options=["-L", str(max_depth)])
+        options = ["-L", str(max_depth)]
+        if min_samples_leaf is not None:
+            options += ["-M", str(_weka_min_instances(min_samples_leaf, len(X_adapt)))]
+        clf = Classifier(classname="weka.classifiers.trees.REPTree", options=options)
         clf.build_classifier(data)
         raw_root = parse_weka_dot(clf.graph)
     except Exception as ex:
+        if raise_on_error:
+            raise
         print(f"Warning: Weka REPTree failed to fit this trial's D_adapt ({ex}), "
               f"reporting None for every REPTree column on this row.")
         return None

@@ -123,7 +123,7 @@ def main():
     parser.add_argument("--max-depth", type=int, default=4)
 
     parser.add_argument("--w-simps", default="0.0,0.001,0.005,0.01,0.02,0.05,0.1,0.2,0.3,0.5,0.75,1.0,1.5,2.0,3.0,5.0", help="Comma-separated w_simp grid, applied to every trial. Normalized scale (complexity term / nodes_max).")
-    parser.add_argument("--w-simis", default="0.0,0.001,0.005,0.01,0.02,0.05,0.1,0.2,0.3,0.5,0.75,1.0,1.5", help="Comma-separated w_simi grid, applied to every trial. Normalized scale (audit term / nodes_max).")
+    parser.add_argument("--w-simis", default="0.0,0.001,0.005,0.01,0.02,0.05,0.1,0.2,0.3,0.5,0.75,1.0,1.5", help="Comma-separated w_simi grid, applied to every trial. Normalized scale (kept-nodes term / nodes_max).")
 
     parser.add_argument(
         "--save-pareto-trees", action=argparse.BooleanOptionalAction, default=False,

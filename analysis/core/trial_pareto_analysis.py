@@ -15,9 +15,6 @@ OPTIONAL_ID_COLS = [
 OTHER_BASELINE_VALUE_COLS = [
     "f1_j48_test", "j48_total_nodes", "pct_reaudit_j48", "sim_old_j48", "sim_old_j48_labeled",
     "sim_old_j48_jaccard", "acc_j48_test",
-    "f1_j48_unbounded_test", "j48_unbounded_total_nodes", "pct_reaudit_j48_unbounded",
-    "sim_old_j48_unbounded", "sim_old_j48_unbounded_labeled", "sim_old_j48_unbounded_jaccard",
-    "acc_j48_unbounded_test",
     "f1_reptree_test", "reptree_total_nodes", "pct_reaudit_reptree", "sim_old_reptree",
     "sim_old_reptree_labeled", "sim_old_reptree_jaccard", "acc_reptree_test",
 ]
