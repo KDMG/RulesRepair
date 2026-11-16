@@ -38,6 +38,8 @@ def load_trial_config_times(csv_paths):
                 print(f"  {path}: file not found")
                 continue
             sweep = pd.read_csv(path)
+            if sweep.empty:
+                continue
             required = ["trial_id", "algorithm", "criterion", "min_samples_leaf_pct", "train_time_sec"]
             missing = [c for c in required if c not in sweep.columns]
             if missing:
