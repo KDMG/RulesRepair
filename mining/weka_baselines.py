@@ -46,7 +46,7 @@ def ensure_jvm():
 
     try:
         import weka.core.jvm as jvm
-        jvm.start()
+        jvm.start(max_heap_size="4g")
     except Exception as ex:
         _jvm_unavailable_reason = (
             f"Weka JVM unavailable ({type(ex).__name__}: {ex}) -- is the "

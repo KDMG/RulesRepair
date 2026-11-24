@@ -303,7 +303,6 @@ def run_mutated_repair(
     done = 0
 
     rows_by_config = {config["name"]: [] for config in GROW_CONFIGS}
-    tree_records_by_config = {config["name"]: [] for config in GROW_CONFIGS}
     sweep_rows = []
     with open(manifest_tmp_path, "w") as manifest_f:
         for trial_idx, trial in enumerate(trials, start=1):
@@ -477,22 +476,6 @@ def run_mutated_repair(
                                 row["fixed_leaf_id"] = leaf_id
                             rows_by_config[config["name"]].append(row)
 
-                            tree_record = {
-                                "trial_id": trial["trial_id"],
-                                "operator": trial["operator"],
-                                "mutation_index": trial["mutation_index"],
-                                "mining_config": config["name"],
-                                "w_simp": w_simp,
-                                "w_simi": w_simi,
-                                "t": None,
-                                "old_tree": mutant_tree,
-                                "new_tree": new_tree,
-                                "cart_tree": cart_tree,
-                            }
-                            if fixed:
-                                tree_record["fixed_leaf_id"] = leaf_id
-                            tree_records_by_config[config["name"]].append(tree_record)
-
                             done += 1
                             if done % progress_every == 0 or done == total_evals:
                                 elapsed = time.time() - start_time
@@ -520,8 +503,6 @@ def run_mutated_repair(
         config_rows = rows_by_config[config["name"]]
         out = pd.DataFrame(config_rows) if config_rows else pd.DataFrame(columns=empty_columns)
         out.to_csv(config_dir / "results.csv", index=False)
-        with open(config_dir / "trees.pkl", "wb") as f:
-            pickle.dump(tree_records_by_config[config["name"]], f)
         n_rows_total += len(out)
 
     elapsed_total = time.time() - start_time
