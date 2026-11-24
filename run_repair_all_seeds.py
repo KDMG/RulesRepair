@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import hashlib
 import sys
 from concurrent.futures import ThreadPoolExecutor, wait, FIRST_COMPLETED
 from pathlib import Path
@@ -8,8 +9,12 @@ REPO_ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(REPO_ROOT))
 
 import run_repair_all
+from keep_remine_prune.param_grid import GROW_CONFIGS
+
+GRID_HASH = hashlib.md5("|".join(c["name"] for c in GROW_CONFIGS).encode()).hexdigest()[:6]
 
 DEFAULT_SEEDS = "0,1,2,3,4,5,6,7,8,9"
+POLL_SECONDS = 30
 
 
 def parse_args(argv):
@@ -20,7 +25,33 @@ def parse_args(argv):
     parser.add_argument("--normative-model", default="normative_model.pkl")
     parser.add_argument("--out-base", default="experiments/sepsis/repair")
     parser.add_argument("--seeds", default=DEFAULT_SEEDS)
+    parser.add_argument(
+        "--resume", action="store_true",
+        help="Skip the (seed, decision point) jobs whose output is already complete (baseline_sweep.csv and a "
+             "non-empty results.csv for every mining configuration).",
+    )
     return parser.parse_known_args(argv)
+
+
+def dp_name_of(dp_csv):
+    name = Path(dp_csv).stem
+    return name[len("dp_"):] if name.startswith("dp_") else name
+
+
+def cache_ready(tree_cache_dir, dp_name):
+    return any(Path(tree_cache_dir).glob(f"{dp_name}_af*_sweep_g{GRID_HASH}.pkl"))
+
+
+def task_complete(task):
+    mutated = Path(task["out_base"]) / dp_name_of(task["dp_csv"]) / "mutated"
+    sweep = mutated / "baseline_sweep.csv"
+    if not sweep.exists() or not (mutated / "manifest.jsonl").exists():
+        return False
+    for config in GROW_CONFIGS:
+        results = mutated / "configs" / config["name"] / "results.csv"
+        if not results.exists() or results.stat().st_size == 0:
+            return False
+    return True
 
 
 def build_tasks(seed_list, dp_dir, out_base, tree_cache_dir, normative_model, extra_args):
@@ -79,6 +110,21 @@ def main(argv=None):
 
     first_seed_done = set()
     pending = list(tasks)
+    if args.resume:
+        remaining = []
+        n_skipped = 0
+        for task in pending:
+            if task_complete(task):
+                n_skipped += 1
+                if task["seed_idx"] == 0:
+                    first_seed_done.add(task["dp_csv"].name)
+            else:
+                remaining.append(task)
+        pending = remaining
+        print(f"Resume: {n_skipped} (seed, decision point) job(s) already complete, {len(pending)} left to run.", flush=True)
+        if not pending:
+            print("Nothing to run.", flush=True)
+            return 0
     running = {}
     with ThreadPoolExecutor(max_workers=max(1, jobs)) as pool:
         while pending or running:
@@ -86,14 +132,14 @@ def main(argv=None):
             while len(running) < max(1, jobs) and i < len(pending):
                 task = pending[i]
                 dp_name = task["dp_csv"].name
-                if task["seed_idx"] == 0 or dp_name in first_seed_done:
+                if task["seed_idx"] == 0 or dp_name in first_seed_done or cache_ready(tree_cache_dir, dp_name_of(task["dp_csv"])):
                     pending.pop(i)
                     running[pool.submit(run_task, task)] = task
                 else:
                     i += 1
             if not running:
                 raise RuntimeError("Scheduler has pending jobs but none can start.")
-            done, _ = wait(list(running), return_when=FIRST_COMPLETED)
+            done, _ = wait(list(running), timeout=POLL_SECONDS, return_when=FIRST_COMPLETED)
             for future in done:
                 task = running.pop(future)
                 future.result()
