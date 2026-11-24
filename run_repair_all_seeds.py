@@ -26,6 +26,11 @@ def parse_args(argv):
     parser.add_argument("--out-base", default="experiments/sepsis/repair")
     parser.add_argument("--seeds", default=DEFAULT_SEEDS)
     parser.add_argument(
+        "--extra-jobs", default="",
+        help="Comma-separated seed:dp pairs (e.g. 1:p_21,3:p_22) to run in addition to --seeds, placed at the "
+             "front of the queue. A pair that is also covered by --seeds runs once.",
+    )
+    parser.add_argument(
         "--resume", action="store_true",
         help="Skip the (seed, decision point) jobs whose output is already complete (baseline_sweep.csv and a "
              "non-empty results.csv for every mining configuration).",
@@ -102,6 +107,28 @@ def main(argv=None):
     print(f"CART/J48/etc. fit cache (Scenario 3): {tree_cache_dir}", flush=True)
 
     tasks, jobs = build_tasks(seed_list, dp_dir, out_base, tree_cache_dir, args.normative_model, extra_args)
+    extra_pairs = [tuple(pair.strip().split(":", 1)) for pair in args.extra_jobs.split(",") if pair.strip()]
+    if extra_pairs:
+        wanted_by_seed = {}
+        for seed, dp in extra_pairs:
+            wanted_by_seed.setdefault(seed, set()).add(dp)
+        extra_tasks = []
+        for seed, dps in wanted_by_seed.items():
+            seed_tasks, extra_jobs_count = build_tasks([seed], dp_dir, out_base, tree_cache_dir, args.normative_model, extra_args)
+            found = {dp_name_of(t["dp_csv"]) for t in seed_tasks} & dps
+            missing = dps - found
+            if missing:
+                raise SystemExit(f"--extra-jobs: no decision point {sorted(missing)} for seed {seed} in {dp_dir}")
+            for t in seed_tasks:
+                if dp_name_of(t["dp_csv"]) in dps:
+                    t["seed_idx"] = 1
+                    extra_tasks.append(t)
+            jobs = max(jobs, extra_jobs_count) if not tasks else jobs
+        extra_keys = {(t["seed"], dp_name_of(t["dp_csv"])) for t in extra_tasks}
+        tasks = [t for t in tasks if (t["seed"], dp_name_of(t["dp_csv"])) not in extra_keys]
+        extra_tasks.sort(key=lambda t: (-t["dp_csv"].stat().st_size, t["dp_csv"].name, t["seed"]))
+        tasks = extra_tasks + tasks
+        print(f"Extra jobs: {len(extra_tasks)} (seed, decision point) job(s) placed at the front of the queue.", flush=True)
     if not tasks:
         print(f"No dp_*.csv files found in {dp_dir}.", flush=True)
         return 1
