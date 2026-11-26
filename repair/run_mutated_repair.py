@@ -2,6 +2,7 @@ import argparse
 import hashlib
 import json
 import pickle
+import shutil
 import sys
 import time
 from pathlib import Path
@@ -113,6 +114,26 @@ def _fit_or_load_baseline_trees(df_adapt_raw, df_test_raw, max_depth, rs_true_ol
               f"of this same dp.", flush=True)
 
     return payload
+
+
+def _load_checkpoint(path, sig):
+    if not path.exists():
+        return None
+    try:
+        with open(path, "rb") as f:
+            ckpt = pickle.load(f)
+    except Exception:
+        return None
+    if not isinstance(ckpt, dict) or ckpt.get("sig") != sig:
+        return None
+    return ckpt
+
+
+def _save_checkpoint(path, sig, payload):
+    tmp = path.with_suffix(".pkl.tmp")
+    with open(tmp, "wb") as f:
+        pickle.dump({"sig": sig, **payload}, f, protocol=pickle.HIGHEST_PROTOCOL)
+    tmp.replace(path)
 
 
 def _load_existing_mutants(out_dir, operator_names):
@@ -301,194 +322,223 @@ def run_mutated_repair(
     progress_every = max(1, total_evals // 100)
     start_time = time.time()
     done = 0
+    restored_evals = 0
 
     rows_by_config = {config["name"]: [] for config in GROW_CONFIGS}
     sweep_rows = []
+    manifest_records = []
+    for trial in trials:
+        mutant_tree = trial["mutant_tree"]
+        mutant_tree_file = out_dir / f"{trial['trial_id']}_mutant_tree.pkl"
+        with open(mutant_tree_file, "wb") as f:
+            pickle.dump(mutant_tree, f)
+        manifest_records.append({
+            "trial_id": trial["trial_id"],
+            "scenario": 3,
+            "operator": trial["operator"],
+            "mutation_index": trial["mutation_index"],
+            "mutation_node_id": trial["mutation_node_id"],
+            "mutation_description": trial["mutation_description"],
+            "mutation_acc_before": trial["mutation_acc_before"],
+            "mutation_acc_after": trial["mutation_acc_after"],
+            "mutation_degradation": trial["mutation_degradation"],
+            "n_alternatives_tried": trial["n_alternatives_tried"],
+            "mutant_n_nodes": count_nodes(mutant_tree),
+            "train_file": str(train_out),
+            "test_file": str(test_out),
+            "mutant_tree_file": str(mutant_tree_file),
+        })
     with open(manifest_tmp_path, "w") as manifest_f:
-        for trial_idx, trial in enumerate(trials, start=1):
-            mutant_tree = trial["mutant_tree"]
-
-            mutant_tree_file = out_dir / f"{trial['trial_id']}_mutant_tree.pkl"
-            with open(mutant_tree_file, "wb") as f:
-                pickle.dump(mutant_tree, f)
-
-            manifest_record = {
-                "trial_id": trial["trial_id"],
-                "scenario": 3,
-                "operator": trial["operator"],
-                "mutation_index": trial["mutation_index"],
-                "mutation_node_id": trial["mutation_node_id"],
-                "mutation_description": trial["mutation_description"],
-                "mutation_acc_before": trial["mutation_acc_before"],
-                "mutation_acc_after": trial["mutation_acc_after"],
-                "mutation_degradation": trial["mutation_degradation"],
-                "n_alternatives_tried": trial["n_alternatives_tried"],
-                "mutant_n_nodes": count_nodes(mutant_tree),
-                "train_file": str(train_out),
-                "test_file": str(test_out),
-                "mutant_tree_file": str(mutant_tree_file),
-            }
-            manifest_f.write(json.dumps(manifest_record) + "\n")
-
-            pred_old_adapt = predict(mutant_tree, X_adapt)
-            pred_old_test = predict(mutant_tree, X_test)
-            f1_old_adapt = f1_macro(y_adapt, pred_old_adapt)
-            f1_old_test = f1_macro(y_test, pred_old_test)
-            acc_old_adapt = acc_score(y_adapt, pred_old_adapt)
-            acc_old_test = acc_score(y_test, pred_old_test)
-
-            rs_mutant = tuple_tree_conversion(mutant_tree)
-            sweep_rows.extend(sweep_rows_for_trial(sweep_configs, mutant_tree, rs_mutant, {
-                "trial_id": trial["trial_id"], "operator": trial["operator"], "mutation_index": trial["mutation_index"],
-            }))
-            sim_old_cart = rule_set_similarity(rs_mutant, rs_cart) if rs_cart is not None else None
-            sim_old_cart_labeled = rule_set_similarity_labeled(rs_mutant, rs_cart) if rs_cart is not None else None
-            sim_old_cart_jaccard = jaccard_rule_set_similarity(rs_mutant, rs_cart) if rs_cart is not None else None
-
-            pct_reaudit_cart = None
-            if cart_tree is not None:
-                mark_reaudit_nodes(mutant_tree, cart_tree)
-                _, _, pct_reaudit_cart = reaudit_summary(cart_tree)
-
-            sim_old_j48 = rule_set_similarity(rs_mutant, rs_j48) if rs_j48 is not None else None
-            sim_old_j48_labeled = rule_set_similarity_labeled(rs_mutant, rs_j48) if rs_j48 is not None else None
-            sim_old_j48_jaccard = jaccard_rule_set_similarity(rs_mutant, rs_j48) if rs_j48 is not None else None
-            pct_reaudit_j48 = None
-            if j48_tree is not None:
-                mark_reaudit_nodes(mutant_tree, j48_tree)
-                _, _, pct_reaudit_j48 = reaudit_summary(j48_tree)
-
-            sim_old_reptree = rule_set_similarity(rs_mutant, rs_reptree) if rs_reptree is not None else None
-            sim_old_reptree_labeled = rule_set_similarity_labeled(rs_mutant, rs_reptree) if rs_reptree is not None else None
-            sim_old_reptree_jaccard = jaccard_rule_set_similarity(rs_mutant, rs_reptree) if rs_reptree is not None else None
-            pct_reaudit_reptree = None
-            if reptree_tree is not None:
-                mark_reaudit_nodes(mutant_tree, reptree_tree)
-                _, _, pct_reaudit_reptree = reaudit_summary(reptree_tree)
-
-            path_list = path_lists_by_trial[trial_idx - 1]
-
-            for config in GROW_CONFIGS:
-                rulesrepair_cache = {}
-                for leaf_id, forced_ids in path_list:
-                    for w_simp in w_simps:
-                        for w_simi in w_simis:
-                            rulesrepair_start = time.perf_counter()
-                            new_tree = keep_remine_prune_alg.grow_tree(
-                                X_adapt, y_adapt, old_tree=mutant_tree,
-                                w_simp=w_simp, w_simi=w_simi,
-                                max_depth=max_depth, grow_func=keep_remine_prune_alg.sklearn_grow_func,
-                                cache=rulesrepair_cache, forced_keep_ids=forced_ids,
-                                grow_params=grow_kwargs(config),
-                            )
-                            rulesrepair_grow_time_sec = time.perf_counter() - rulesrepair_start
-
-                            pred_new_adapt = predict(new_tree, X_adapt, cache=rulesrepair_cache)
-                            pred_new_test = predict(new_tree, X_test, cache=rulesrepair_cache)
-                            f1_new_adapt = f1_macro(y_adapt, pred_new_adapt)
-                            f1_new_test = f1_macro(y_test, pred_new_test)
-                            acc_new_adapt = acc_score(y_adapt, pred_new_adapt)
-                            acc_new_test = acc_score(y_test, pred_new_test)
-
-                            n_total = count_nodes(new_tree)
-                            n_new = count_new_nodes(new_tree)
-
-                            rs_new = tuple_tree_conversion(new_tree)
-                            sim_old_new = rule_set_similarity(rs_mutant, rs_new)
-                            sim_old_new_labeled = rule_set_similarity_labeled(rs_mutant, rs_new)
-                            sim_old_new_jaccard = jaccard_rule_set_similarity(rs_mutant, rs_new)
-
-                            mark_reaudit_nodes(mutant_tree, new_tree)
-                            _, _, pct_reaudit_new = reaudit_summary(new_tree)
-
-                            row = {
-                                "trial_id": f"{trial['trial_id']}_fixedleaf{leaf_id}" if fixed else trial["trial_id"],
-                                "scenario": 3,
-                                "operator": trial["operator"],
-                                "mutation_index": trial["mutation_index"],
-                                "mutation_node_id": trial["mutation_node_id"],
-                                "mutation_description": trial["mutation_description"],
-                                "mutation_acc_before": trial["mutation_acc_before"],
-                                "mutation_acc_after": trial["mutation_acc_after"],
-                                "mutation_degradation": trial["mutation_degradation"],
-                                "n_alternatives_tried": trial["n_alternatives_tried"],
-                                "mining_config": config["name"],
-                                "mining_algorithm": config["algorithm"],
-                                "mining_criterion": config["criterion"],
-                                "min_samples_leaf_pct": config["min_samples_leaf_pct"],
-                                "min_samples_leaf": config["min_samples_leaf"],
-                                "w_simp": w_simp,
-                                "w_simi": w_simi,
-                                "t": None,  # kept for CSV-schema compat; no longer swept
-                                "delta_f1_old": baseline_f1 - f1_old_test,
-                                "delta_acc_old": baseline_acc - acc_old_test,
-                                "f1_old_adapt": f1_old_adapt,
-                                "f1_old_test": f1_old_test,
-                                "acc_old_adapt": acc_old_adapt,
-                                "acc_old_test": acc_old_test,
-                                "f1_new_adapt": f1_new_adapt,
-                                "f1_new_test": f1_new_test,
-                                "acc_new_adapt": acc_new_adapt,
-                                "acc_new_test": acc_new_test,
-                                "total_nodes": n_total,
-                                "new_nodes": n_new,
-                                "pct_to_reaudit": round(100 * n_new / n_total, 1) if n_total else 0.0,
-                                "pct_reaudit_new": pct_reaudit_new,
-                                "sim_old_new": round(sim_old_new, 4),
-                                "sim_old_new_labeled": round(sim_old_new_labeled, 4),
-                                "sim_old_new_jaccard": round(sim_old_new_jaccard, 4),
-                                "f1_cart_adapt": f1_cart_adapt,
-                                "f1_cart_test": f1_cart_test,
-                                "acc_cart_adapt": acc_cart_adapt,
-                                "acc_cart_test": acc_cart_test,
-                                "cart_total_nodes": cart_total_nodes,
-                                "cart_pct_to_reaudit": 100.0 if cart_tree is not None else None,
-                                "pct_reaudit_cart": pct_reaudit_cart,
-                                "sim_old_cart": round(sim_old_cart, 4) if sim_old_cart is not None else None,
-                                "sim_old_cart_labeled": round(sim_old_cart_labeled, 4) if sim_old_cart_labeled is not None else None,
-                                "sim_old_cart_jaccard": round(sim_old_cart_jaccard, 4) if sim_old_cart_jaccard is not None else None,
-                                "cart_train_time_sec": round(cart_train_time_sec, 6),
-                                "rulesrepair_grow_time_sec": round(rulesrepair_grow_time_sec, 6),
-                                "f1_j48_adapt": f1_j48_adapt,
-                                "f1_j48_test": f1_j48_test,
-                                "acc_j48_adapt": acc_j48_adapt,
-                                "acc_j48_test": acc_j48_test,
-                                "j48_total_nodes": j48_total_nodes,
-                                "j48_pct_to_reaudit": 100.0 if j48_tree is not None else None,
-                                "pct_reaudit_j48": pct_reaudit_j48,
-                                "sim_old_j48": round(sim_old_j48, 4) if sim_old_j48 is not None else None,
-                                "sim_old_j48_labeled": round(sim_old_j48_labeled, 4) if sim_old_j48_labeled is not None else None,
-                                "sim_old_j48_jaccard": round(sim_old_j48_jaccard, 4) if sim_old_j48_jaccard is not None else None,
-                                "j48_train_time_sec": round(j48_train_time_sec, 6),
-                                "f1_reptree_adapt": f1_reptree_adapt,
-                                "f1_reptree_test": f1_reptree_test,
-                                "acc_reptree_adapt": acc_reptree_adapt,
-                                "acc_reptree_test": acc_reptree_test,
-                                "reptree_total_nodes": reptree_total_nodes,
-                                "reptree_pct_to_reaudit": 100.0 if reptree_tree is not None else None,
-                                "pct_reaudit_reptree": pct_reaudit_reptree,
-                                "sim_old_reptree": round(sim_old_reptree, 4) if sim_old_reptree is not None else None,
-                                "sim_old_reptree_labeled": round(sim_old_reptree_labeled, 4) if sim_old_reptree_labeled is not None else None,
-                                "sim_old_reptree_jaccard": round(sim_old_reptree_jaccard, 4) if sim_old_reptree_jaccard is not None else None,
-                                "reptree_train_time_sec": round(reptree_train_time_sec, 6),
-                            }
-                            if fixed:
-                                row["fixed_leaf_id"] = leaf_id
-                            rows_by_config[config["name"]].append(row)
-
-                            done += 1
-                            if done % progress_every == 0 or done == total_evals:
-                                elapsed = time.time() - start_time
-                                rate = done / elapsed if elapsed > 0 else 0
-                                eta_min = (total_evals - done) / rate / 60 if rate > 0 else float("inf")
-                                print(
-                                    f"  {done}/{total_evals} ({100 * done / total_evals:.1f}%), "
-                                    f"trial {trial_idx}/{len(trials)}, "
-                                    f"elapsed {elapsed / 60:.1f} min, ETA {eta_min:.1f} min",
-                                    flush=True,
-                                )
-
+        for record in manifest_records:
+            manifest_f.write(json.dumps(record) + "\n")
     manifest_tmp_path.replace(manifest_path)
+
+    ckpt_dir = out_dir / "checkpoints"
+    ckpt_dir.mkdir(exist_ok=True)
+    run_sig = (
+        grid_hash, [float(w) for w in w_simps], [float(w) for w in w_simis], max_depth, bool(fixed),
+        adapt_fraction, split_method, split_seed,
+    )
+    for trial_idx, trial in enumerate(trials, start=1):
+        mutant_tree = trial["mutant_tree"]
+
+        rs_mutant = tuple_tree_conversion(mutant_tree)
+        n_trial_evals = len(path_lists_by_trial[trial_idx - 1]) * n_combos * len(GROW_CONFIGS)
+        ckpt_file = ckpt_dir / f"{trial['trial_id']}.pkl"
+        ckpt_sig = hashlib.md5(repr((run_sig, trial["trial_id"], rs_mutant)).encode()).hexdigest()
+        ckpt = _load_checkpoint(ckpt_file, ckpt_sig)
+        if ckpt is not None:
+            for name, rows in ckpt["rows"].items():
+                rows_by_config[name].extend(rows)
+            sweep_rows.extend(ckpt["sweep_rows"])
+            done += n_trial_evals
+            restored_evals += n_trial_evals
+            print(f"  trial {trial_idx}/{len(trials)} restored from checkpoint, {done}/{total_evals} evaluations", flush=True)
+            continue
+        rows_start = {name: len(rows) for name, rows in rows_by_config.items()}
+        sweep_start = len(sweep_rows)
+
+        pred_old_adapt = predict(mutant_tree, X_adapt)
+        pred_old_test = predict(mutant_tree, X_test)
+        f1_old_adapt = f1_macro(y_adapt, pred_old_adapt)
+        f1_old_test = f1_macro(y_test, pred_old_test)
+        acc_old_adapt = acc_score(y_adapt, pred_old_adapt)
+        acc_old_test = acc_score(y_test, pred_old_test)
+
+        sweep_rows.extend(sweep_rows_for_trial(sweep_configs, mutant_tree, rs_mutant, {
+            "trial_id": trial["trial_id"], "operator": trial["operator"], "mutation_index": trial["mutation_index"],
+        }))
+        sim_old_cart = rule_set_similarity(rs_mutant, rs_cart) if rs_cart is not None else None
+        sim_old_cart_labeled = rule_set_similarity_labeled(rs_mutant, rs_cart) if rs_cart is not None else None
+        sim_old_cart_jaccard = jaccard_rule_set_similarity(rs_mutant, rs_cart) if rs_cart is not None else None
+
+        pct_reaudit_cart = None
+        if cart_tree is not None:
+            mark_reaudit_nodes(mutant_tree, cart_tree)
+            _, _, pct_reaudit_cart = reaudit_summary(cart_tree)
+
+        sim_old_j48 = rule_set_similarity(rs_mutant, rs_j48) if rs_j48 is not None else None
+        sim_old_j48_labeled = rule_set_similarity_labeled(rs_mutant, rs_j48) if rs_j48 is not None else None
+        sim_old_j48_jaccard = jaccard_rule_set_similarity(rs_mutant, rs_j48) if rs_j48 is not None else None
+        pct_reaudit_j48 = None
+        if j48_tree is not None:
+            mark_reaudit_nodes(mutant_tree, j48_tree)
+            _, _, pct_reaudit_j48 = reaudit_summary(j48_tree)
+
+        sim_old_reptree = rule_set_similarity(rs_mutant, rs_reptree) if rs_reptree is not None else None
+        sim_old_reptree_labeled = rule_set_similarity_labeled(rs_mutant, rs_reptree) if rs_reptree is not None else None
+        sim_old_reptree_jaccard = jaccard_rule_set_similarity(rs_mutant, rs_reptree) if rs_reptree is not None else None
+        pct_reaudit_reptree = None
+        if reptree_tree is not None:
+            mark_reaudit_nodes(mutant_tree, reptree_tree)
+            _, _, pct_reaudit_reptree = reaudit_summary(reptree_tree)
+
+        path_list = path_lists_by_trial[trial_idx - 1]
+
+        for config in GROW_CONFIGS:
+            rulesrepair_cache = {}
+            for leaf_id, forced_ids in path_list:
+                for w_simp in w_simps:
+                    for w_simi in w_simis:
+                        rulesrepair_start = time.perf_counter()
+                        new_tree = keep_remine_prune_alg.grow_tree(
+                            X_adapt, y_adapt, old_tree=mutant_tree,
+                            w_simp=w_simp, w_simi=w_simi,
+                            max_depth=max_depth, grow_func=keep_remine_prune_alg.sklearn_grow_func,
+                            cache=rulesrepair_cache, forced_keep_ids=forced_ids,
+                            grow_params=grow_kwargs(config),
+                        )
+                        rulesrepair_grow_time_sec = time.perf_counter() - rulesrepair_start
+
+                        pred_new_adapt = predict(new_tree, X_adapt, cache=rulesrepair_cache)
+                        pred_new_test = predict(new_tree, X_test, cache=rulesrepair_cache)
+                        f1_new_adapt = f1_macro(y_adapt, pred_new_adapt)
+                        f1_new_test = f1_macro(y_test, pred_new_test)
+                        acc_new_adapt = acc_score(y_adapt, pred_new_adapt)
+                        acc_new_test = acc_score(y_test, pred_new_test)
+
+                        n_total = count_nodes(new_tree)
+                        n_new = count_new_nodes(new_tree)
+
+                        rs_new = tuple_tree_conversion(new_tree)
+                        sim_old_new = rule_set_similarity(rs_mutant, rs_new)
+                        sim_old_new_labeled = rule_set_similarity_labeled(rs_mutant, rs_new)
+                        sim_old_new_jaccard = jaccard_rule_set_similarity(rs_mutant, rs_new)
+
+                        mark_reaudit_nodes(mutant_tree, new_tree)
+                        _, _, pct_reaudit_new = reaudit_summary(new_tree)
+
+                        row = {
+                            "trial_id": f"{trial['trial_id']}_fixedleaf{leaf_id}" if fixed else trial["trial_id"],
+                            "scenario": 3,
+                            "operator": trial["operator"],
+                            "mutation_index": trial["mutation_index"],
+                            "mutation_node_id": trial["mutation_node_id"],
+                            "mutation_description": trial["mutation_description"],
+                            "mutation_acc_before": trial["mutation_acc_before"],
+                            "mutation_acc_after": trial["mutation_acc_after"],
+                            "mutation_degradation": trial["mutation_degradation"],
+                            "n_alternatives_tried": trial["n_alternatives_tried"],
+                            "mining_config": config["name"],
+                            "mining_algorithm": config["algorithm"],
+                            "mining_criterion": config["criterion"],
+                            "min_samples_leaf_pct": config["min_samples_leaf_pct"],
+                            "min_samples_leaf": config["min_samples_leaf"],
+                            "w_simp": w_simp,
+                            "w_simi": w_simi,
+                            "t": None,  # kept for CSV-schema compat; no longer swept
+                            "delta_f1_old": baseline_f1 - f1_old_test,
+                            "delta_acc_old": baseline_acc - acc_old_test,
+                            "f1_old_adapt": f1_old_adapt,
+                            "f1_old_test": f1_old_test,
+                            "acc_old_adapt": acc_old_adapt,
+                            "acc_old_test": acc_old_test,
+                            "f1_new_adapt": f1_new_adapt,
+                            "f1_new_test": f1_new_test,
+                            "acc_new_adapt": acc_new_adapt,
+                            "acc_new_test": acc_new_test,
+                            "total_nodes": n_total,
+                            "new_nodes": n_new,
+                            "pct_to_reaudit": round(100 * n_new / n_total, 1) if n_total else 0.0,
+                            "pct_reaudit_new": pct_reaudit_new,
+                            "sim_old_new": round(sim_old_new, 4),
+                            "sim_old_new_labeled": round(sim_old_new_labeled, 4),
+                            "sim_old_new_jaccard": round(sim_old_new_jaccard, 4),
+                            "f1_cart_adapt": f1_cart_adapt,
+                            "f1_cart_test": f1_cart_test,
+                            "acc_cart_adapt": acc_cart_adapt,
+                            "acc_cart_test": acc_cart_test,
+                            "cart_total_nodes": cart_total_nodes,
+                            "cart_pct_to_reaudit": 100.0 if cart_tree is not None else None,
+                            "pct_reaudit_cart": pct_reaudit_cart,
+                            "sim_old_cart": round(sim_old_cart, 4) if sim_old_cart is not None else None,
+                            "sim_old_cart_labeled": round(sim_old_cart_labeled, 4) if sim_old_cart_labeled is not None else None,
+                            "sim_old_cart_jaccard": round(sim_old_cart_jaccard, 4) if sim_old_cart_jaccard is not None else None,
+                            "cart_train_time_sec": round(cart_train_time_sec, 6),
+                            "rulesrepair_grow_time_sec": round(rulesrepair_grow_time_sec, 6),
+                            "f1_j48_adapt": f1_j48_adapt,
+                            "f1_j48_test": f1_j48_test,
+                            "acc_j48_adapt": acc_j48_adapt,
+                            "acc_j48_test": acc_j48_test,
+                            "j48_total_nodes": j48_total_nodes,
+                            "j48_pct_to_reaudit": 100.0 if j48_tree is not None else None,
+                            "pct_reaudit_j48": pct_reaudit_j48,
+                            "sim_old_j48": round(sim_old_j48, 4) if sim_old_j48 is not None else None,
+                            "sim_old_j48_labeled": round(sim_old_j48_labeled, 4) if sim_old_j48_labeled is not None else None,
+                            "sim_old_j48_jaccard": round(sim_old_j48_jaccard, 4) if sim_old_j48_jaccard is not None else None,
+                            "j48_train_time_sec": round(j48_train_time_sec, 6),
+                            "f1_reptree_adapt": f1_reptree_adapt,
+                            "f1_reptree_test": f1_reptree_test,
+                            "acc_reptree_adapt": acc_reptree_adapt,
+                            "acc_reptree_test": acc_reptree_test,
+                            "reptree_total_nodes": reptree_total_nodes,
+                            "reptree_pct_to_reaudit": 100.0 if reptree_tree is not None else None,
+                            "pct_reaudit_reptree": pct_reaudit_reptree,
+                            "sim_old_reptree": round(sim_old_reptree, 4) if sim_old_reptree is not None else None,
+                            "sim_old_reptree_labeled": round(sim_old_reptree_labeled, 4) if sim_old_reptree_labeled is not None else None,
+                            "sim_old_reptree_jaccard": round(sim_old_reptree_jaccard, 4) if sim_old_reptree_jaccard is not None else None,
+                            "reptree_train_time_sec": round(reptree_train_time_sec, 6),
+                        }
+                        if fixed:
+                            row["fixed_leaf_id"] = leaf_id
+                        rows_by_config[config["name"]].append(row)
+
+                        done += 1
+                        if done % progress_every == 0 or done == total_evals:
+                            elapsed = time.time() - start_time
+                            rate = (done - restored_evals) / elapsed if elapsed > 0 else 0
+                            eta_min = (total_evals - done) / rate / 60 if rate > 0 else float("inf")
+                            print(
+                                f"  {done}/{total_evals} ({100 * done / total_evals:.1f}%), "
+                                f"trial {trial_idx}/{len(trials)}, "
+                                f"elapsed {elapsed / 60:.1f} min, ETA {eta_min:.1f} min",
+                                flush=True,
+                            )
+
+        _save_checkpoint(ckpt_file, ckpt_sig, {
+            "rows": {name: rows[rows_start[name]:] for name, rows in rows_by_config.items()},
+            "sweep_rows": sweep_rows[sweep_start:],
+        })
 
     empty_columns = RESULTS_COLUMNS + ["fixed_leaf_id"] if fixed else RESULTS_COLUMNS
     sweep_csv = out_dir / "baseline_sweep.csv"
@@ -504,6 +554,8 @@ def run_mutated_repair(
         out = pd.DataFrame(config_rows) if config_rows else pd.DataFrame(columns=empty_columns)
         out.to_csv(config_dir / "results.csv", index=False)
         n_rows_total += len(out)
+
+    shutil.rmtree(ckpt_dir, ignore_errors=True)
 
     elapsed_total = time.time() - start_time
     print(f"Done in {elapsed_total / 60:.1f} min: {len(trials)} trials x {len(GROW_CONFIGS)} mining configs x "
